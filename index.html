@@ -96,10 +96,10 @@ input,textarea{font-family:inherit;}
 .h-sec{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:26px 2px 12px;}
 
 /* ---------- greeting (Today) ---------- */
-.hello{padding:6px 2px 2px;}
-.hello .hi{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.1;}
-.hello .hi b{color:var(--accent);font-weight:800;}
-.hello .date{font-size:13px;font-weight:600;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;}
+.hello{padding:14px 0 4px;}
+.hello .date{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.1em;}
+.hello .hi{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin-top:3px;}
+.hello .hi b{color:var(--ink);font-weight:800;}
 .fday{
   margin-top:14px;display:flex;align-items:center;gap:10px;
   font-size:13.5px;color:var(--ink-2);
@@ -630,51 +630,68 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
   .rest .adj{min-width:40px;}
 }
 
-/* ===================== HOME PANEL (This Week / Consistency / PBs) ===================== */
-.hp{margin:18px 0 4px;}
-.hp-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 16px 14px;margin-bottom:12px;}
-.hp-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;}
-.hp-title{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
-.hp-meta{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;}
-.hp-meta b{color:var(--ink);font-weight:700;}
+/* ===================== HOME (flat, full-bleed sections - not cards) ===================== */
+.hp{margin:2px 0 4px;}
 
-/* week strip */
-.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+/* headline stat strip, edge to edge */
+.hp-strip{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  margin:14px -18px 0;padding:15px 18px;
+  background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.hp-strip .st{text-align:center;}
+.hp-strip .st + .st{border-left:1px solid var(--line);}
+.hp-strip .v{font-size:24px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1;}
+.hp-strip .v small{font-size:11px;font-weight:700;color:var(--muted);margin-left:2px;letter-spacing:0;}
+.hp-strip .k{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:6px;}
+
+/* section header bar, edge to edge */
+.hp-sec{margin:0 -18px;padding:0 18px;}
+.hp-sech{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  margin:0 -18px;padding:9px 18px;background:var(--paper-2);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.hp-sec + .hp-sec .hp-sech{border-top:0;}
+.hp-title{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+.hp-meta{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;font-weight:600;}
+.hp-meta b{color:var(--ink-2);font-weight:750;}
+.hp-body{padding:14px 0 16px;}
+
+/* week strip - compact */
+.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;}
 .wk-d{text-align:center;}
-.wk-l{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--faint);margin-bottom:6px;}
-.wk-c{height:38px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--paper-2);
-      display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;
-      color:var(--faint);font-variant-numeric:tabular-nums;transition:transform .18s var(--ease);}
+.wk-l{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--faint);margin-bottom:5px;}
+.wk-c{height:30px;border-radius:var(--r-sm);border:1px solid var(--line);background:transparent;
+      display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+      color:var(--faint);font-variant-numeric:tabular-nums;}
 .wk-c.done{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
-.wk-c.today{border-color:var(--accent);border-width:2px;color:var(--accent);}
+.wk-c.today{border-color:var(--accent);color:var(--accent);}
 .wk-c.today.done{color:var(--on-accent);}
-.wk-c.wk-off{opacity:.8;}
-.hp-bar{height:6px;border-radius:99px;background:var(--paper-2);overflow:hidden;margin-top:13px;}
+.wk-c.wk-off{opacity:.55;}
+.hp-bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px;}
 .hp-bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s var(--ease);}
 
 /* consistency heatmap */
-.cg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-template-rows:repeat(7,auto);gap:3px;max-width:288px;margin:0 auto;}
-.cg-c{width:100%;aspect-ratio:1;border-radius:3px;background:var(--paper-2);border:1px solid transparent;}
+.cg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-template-rows:repeat(7,auto);
+    gap:3px;max-width:300px;margin:0 auto;}
+.cg-c{width:100%;aspect-ratio:1;border-radius:2px;background:var(--paper-2);}
 .cg-c.l1{background:var(--accent-wash);}
 .cg-c.l2{background:var(--accent-2);}
 .cg-c.l3{background:var(--accent);}
 .cg-c.future{background:transparent;}
-.cg-legend{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:11px;color:var(--faint);}
-.cg-legend i{width:11px;height:11px;border-radius:3px;display:inline-block;}
-.hp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line);}
-.hp-stat{text-align:center;}
-.hp-stat .v{font-size:19px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink);}
-.hp-stat .v small{font-size:11px;font-weight:600;color:var(--muted);margin-left:1px;}
-.hp-stat .k{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-top:3px;}
+.cg-legend{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:12px;font-size:10.5px;color:var(--faint);}
+.cg-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
 
-/* personal bests */
-.pb-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);}
-.pb-row:first-of-type{border-top:0;}
-.pb-n{font-size:14px;font-weight:650;color:var(--ink);line-height:1.25;}
-.pb-d{font-size:11.5px;color:var(--faint);margin-top:1px;}
+/* personal records - flat rows, value right in accent (Hevy) */
+.pb-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+        padding:11px 0;border-bottom:1px solid var(--line);}
+.pb-row:last-child{border-bottom:0;}
+.pb-n{font-size:14.5px;font-weight:650;color:var(--ink);line-height:1.25;}
+.pb-d{font-size:11px;color:var(--faint);margin-top:2px;font-weight:600;}
 .pb-v{text-align:right;white-space:nowrap;}
-.pb-v .m{font-size:14.5px;font-weight:750;font-variant-numeric:tabular-nums;color:var(--ink);}
-.pb-v .e{font-size:11px;color:var(--accent);font-weight:650;font-variant-numeric:tabular-nums;}
+.pb-v .m{font-size:14.5px;font-weight:750;font-variant-numeric:tabular-nums;color:var(--accent);}
+.pb-v .e{font-size:10.5px;color:var(--faint);font-weight:650;font-variant-numeric:tabular-nums;margin-top:1px;}
 .hp-empty{font-size:13px;color:var(--muted);padding:4px 0 2px;}
 </style>
 </head>
@@ -696,53 +713,46 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
   <section class="view active" id="view-today">
 
     <div class="hello">
-      <div class="hi">Let's lift, <b id="dadName">Hannah</b></div>
       <div class="date" id="todayDate"></div>
-      <div class="fday">
-        <span>Built for you. Now go beat last week.</span>
-      </div>
+      <div class="hi"><b id="dadName">Hannah</b></div>
       <div id="personalMsg"><div class="from" id="personalFrom">A note</div><div class="msg" id="personalMsgText"></div></div>
     </div>
 
 
     <div class="hp" id="homePanel">
 
-      <div class="hp-card">
-        <div class="hp-head">
-          <div class="hp-title">This Week</div>
-          <div class="hp-meta" id="wkMeta"></div>
-        </div>
-        <div class="wk" id="wkStrip"></div>
-        <div class="hp-bar"><i id="wkBar" style="width:0%"></i></div>
+      <div class="hp-strip">
+        <div class="st"><div class="v" id="cgStreak">0</div><div class="k">Week streak</div></div>
+        <div class="st"><div class="v" id="cgAvg">0</div><div class="k">Avg / week</div></div>
+        <div class="st"><div class="v" id="cgTotal">0</div><div class="k">12-wk total</div></div>
       </div>
 
-      <div class="hp-card">
-        <div class="hp-head">
-          <div class="hp-title">Workout Consistency</div>
-          <div class="hp-meta" id="cgMeta"></div>
-        </div>
-        <div class="cg" id="cgGrid"></div>
-        <div class="cg-legend">
-          <span>Less</span>
-          <i style="background:var(--paper-2)"></i>
-          <i style="background:var(--accent-wash)"></i>
-          <i style="background:var(--accent-2)"></i>
-          <i style="background:var(--accent)"></i>
-          <span>More</span>
-        </div>
-        <div class="hp-stats">
-          <div class="hp-stat"><div class="v" id="cgStreak">0</div><div class="k">Week streak</div></div>
-          <div class="hp-stat"><div class="v" id="cgAvg">0</div><div class="k">Avg / week</div></div>
-          <div class="hp-stat"><div class="v" id="cgTotal">0</div><div class="k">Last 12 wks</div></div>
+      <div class="hp-sec">
+        <div class="hp-sech"><div class="hp-title">This Week</div><div class="hp-meta" id="wkMeta"></div></div>
+        <div class="hp-body">
+          <div class="wk" id="wkStrip"></div>
+          <div class="hp-bar"><i id="wkBar" style="width:0%"></i></div>
         </div>
       </div>
 
-      <div class="hp-card">
-        <div class="hp-head">
-          <div class="hp-title">Personal Bests</div>
-          <div class="hp-meta" id="pbMeta"></div>
+      <div class="hp-sec">
+        <div class="hp-sech"><div class="hp-title">Consistency</div><div class="hp-meta" id="cgMeta"></div></div>
+        <div class="hp-body">
+          <div class="cg" id="cgGrid"></div>
+          <div class="cg-legend">
+            <span>Less</span>
+            <i style="background:var(--paper-2)"></i>
+            <i style="background:var(--accent-wash)"></i>
+            <i style="background:var(--accent-2)"></i>
+            <i style="background:var(--accent)"></i>
+            <span>More</span>
+          </div>
         </div>
-        <div id="pbList"></div>
+      </div>
+
+      <div class="hp-sec">
+        <div class="hp-sech"><div class="hp-title">Personal Records</div><div class="hp-meta" id="pbMeta"></div></div>
+        <div class="hp-body" id="pbList"></div>
       </div>
 
     </div>
