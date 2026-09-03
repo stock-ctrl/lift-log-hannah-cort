@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#f3efe7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1b1714" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="Lifting Log">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d0e11">
 <title>Hannah's Lifting Log</title>
 <style>
 /* ============================================================================
@@ -19,22 +18,25 @@
    - Colors are below. Everything is OKLCH, warm-tinted, no pure black/white.
    ========================================================================== */
 :root{
-  --paper:    oklch(0.971 0.008 78);
-  --paper-2:  oklch(0.948 0.010 78);
-  --card:     oklch(0.995 0.004 80);
-  --ink:      oklch(0.255 0.015 55);
-  --ink-2:    oklch(0.430 0.014 55);
-  --muted:    oklch(0.610 0.012 60);
-  --faint:    oklch(0.720 0.010 70);
-  --line:     oklch(0.895 0.010 75);
-  --line-2:   oklch(0.835 0.012 75);
-  --accent:   oklch(0.552 0.196 27);
-  --accent-2: oklch(0.486 0.190 27);
-  --accent-wash: oklch(0.953 0.040 32);
-  --good:     oklch(0.560 0.105 155);
-  --good-wash:oklch(0.950 0.038 158);
-  --blue:     oklch(0.600 0.130 250);
-  --on-accent:oklch(0.992 0.008 80);
+  color-scheme: dark;
+  /* Dark surfaces, cool near-black. Pink where Hevy uses blue. */
+  --paper:    oklch(0.165 0.006 285);   /* page */
+  --paper-2:  oklch(0.205 0.007 285);   /* section strip / inset */
+  --card:     oklch(0.228 0.008 285);   /* elevated card */
+  --ink:      oklch(0.968 0.003 285);
+  --ink-2:    oklch(0.800 0.006 285);
+  --muted:    oklch(0.645 0.008 285);
+  --faint:    oklch(0.505 0.008 285);
+  --line:     oklch(0.288 0.008 285);
+  --line-2:   oklch(0.365 0.009 285);
+  --accent:   oklch(0.720 0.185 350);   /* pink */
+  --accent-2: oklch(0.640 0.180 350);
+  --accent-wash: oklch(0.300 0.075 350);
+  --good:     oklch(0.780 0.180 145);   /* completed set */
+  --good-wash:oklch(0.330 0.075 150);
+  --prgold:   oklch(0.855 0.160 95);    /* PR badge */
+  --blue:     oklch(0.700 0.120 275);
+  --on-accent:oklch(0.160 0.020 350);   /* dark ink on pink */
 
   --r-lg:18px; --r-md:13px; --r-sm:9px;
   --bar-h:62px;
@@ -42,28 +44,8 @@
   --tab-safe: calc(var(--bar-h) + env(safe-area-inset-bottom));
 }
 
-/* Auto dark mode: follows the phone's system setting, no toggle needed.
-   Warm charcoal, not pure black — the paper theme translated into the dark. */
-@media (prefers-color-scheme: dark){
-  :root{
-    --paper:    oklch(0.205 0.012 60);
-    --paper-2:  oklch(0.250 0.012 60);
-    --card:     oklch(0.278 0.013 60);
-    --ink:      oklch(0.935 0.010 82);
-    --ink-2:    oklch(0.770 0.012 78);
-    --muted:    oklch(0.620 0.012 72);
-    --faint:    oklch(0.500 0.012 70);
-    --line:     oklch(0.340 0.012 65);
-    --line-2:   oklch(0.435 0.013 65);
-    --accent:   oklch(0.645 0.180 28);
-    --accent-2: oklch(0.560 0.175 28);
-    --accent-wash: oklch(0.330 0.060 30);
-    --good:     oklch(0.680 0.125 158);
-    --good-wash:oklch(0.335 0.055 158);
-    --blue:     oklch(0.700 0.115 250);
-    --on-accent:oklch(0.992 0.008 80);
-  }
-}
+/* Dark is the design, not a system preference - no light variant. */
+
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;background:var(--paper);}
@@ -266,11 +248,11 @@ input,textarea{font-family:inherit;}
 /* big add-exercise button */
 .add-ex{
   width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
-  background:var(--ink);color:var(--paper);border:none;border-radius:var(--r-lg);
+  background:var(--accent);color:var(--on-accent);border:none;border-radius:var(--r-lg);
   font-size:16px;font-weight:750;padding:16px;cursor:pointer;margin-top:2px;
   transition:transform .15s var(--ease),background .2s;
 }
-.add-ex:active{transform:scale(.985);background:var(--ink-2);}
+.add-ex:active{transform:scale(.985);background:var(--accent-2);}
 .add-ex svg{width:19px;height:19px;}
 
 /* ---------- summary strip ---------- */
@@ -344,7 +326,7 @@ input,textarea{font-family:inherit;}
 .pr .nm{font-weight:750;font-size:15.5px;}
 .pr .sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
 .pr .r{text-align:right;}
-.pr .big{font-size:19px;font-weight:800;letter-spacing:-.01em;}
+.pr .big{font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--accent);}
 .pr .e1{font-size:11.5px;color:var(--accent);font-weight:700;margin-top:1px;}
 .pr-chart{display:none;padding:0 2px 16px;border-bottom:1px solid var(--line);}
 .pr-chart.open{display:block;animation:fade .2s var(--ease);}
@@ -398,7 +380,7 @@ input,textarea{font-family:inherit;}
 .stat-big{font-size:14px;color:var(--ink-2);line-height:1.7;margin:6px 2px;}
 .seg{display:flex;gap:6px;flex-wrap:wrap;margin:2px 2px 4px;}
 .seg button{
-  border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);border-radius:20px;
+  border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);border-radius:999px;
   padding:8px 15px;font-size:13px;font-weight:750;cursor:pointer;font-variant-numeric:tabular-nums;
 }
 .seg button.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
@@ -539,7 +521,7 @@ input,textarea{font-family:inherit;}
 .prbanner{
   position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translateX(-50%) translateY(-26px);
   z-index:61;background:var(--accent);color:var(--on-accent);border-radius:16px;
-  padding:12px 22px;text-align:center;box-shadow:0 14px 38px oklch(0.55 0.196 27 / .36);
+  padding:12px 22px;text-align:center;box-shadow:0 14px 38px oklch(0.72 0.185 350 / .34);
   opacity:0;pointer-events:none;transition:opacity .3s var(--ease),transform .42s var(--ease);max-width:92vw;
 }
 .prbanner.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -1371,7 +1353,7 @@ function celebratePR(name,set,e1){
 }
 function confetti(){
   const host=document.getElementById("confetti");
-  const colors=["var(--accent)","var(--good)","oklch(0.80 0.15 85)","var(--blue)","var(--ink)"];
+  const colors=["var(--accent)","var(--good)","var(--prgold)","var(--blue)","var(--ink)"];
   for(let i=0;i<48;i++){
     const p=document.createElement("div"); p.className="cfetti";
     p.style.left=(Math.random()*100).toFixed(2)+"vw";
