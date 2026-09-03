@@ -1648,7 +1648,7 @@ function renderAlertVol(){
   document.getElementById("alertVolVal").textContent=pct+"%";
 }
 async function exportData(){
-  const data=JSON.stringify({app:"hannah-clarks-lifting-log",version:2,unit,restTarget,exportedFrom:ATHLETE_KEY,
+  const data=JSON.stringify({app:"hannah-cort-lifting-log",version:2,unit,restTarget,exportedFrom:ATHLETE_KEY,
     workouts:loadWorkouts(),bodyweight:loadBW()},null,2);
   const fname="lifting-backup-"+todayISO()+".json";
   // On iPhone, the share sheet lets him Save to Files -> iCloud Drive, or AirDrop it to a Mac.
