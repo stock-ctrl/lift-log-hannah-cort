@@ -724,6 +724,16 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .msl-row .s.zero{color:var(--faint);font-weight:600;}
 .msl-bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px;max-width:220px;}
 .msl-bar i{display:block;height:100%;background:var(--accent);border-radius:99px;}
+
+/* ===================== BODY HEAT MAP ===================== */
+.body-wrap{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 0 2px;max-width:340px;margin:0 auto;}
+.body-fig{text-align:center;}
+.body-fig svg{width:100%;height:auto;max-height:290px;}
+.body-cap{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:2px;}
+.body-scale{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;font-size:10.5px;color:var(--faint);}
+.body-scale i{width:22px;height:9px;border-radius:2px;display:inline-block;}
+.msl-row .pct{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent);font-size:12.5px;margin-right:12px;}
+.msl-val{display:flex;align-items:baseline;}
 </style>
 </head>
 <body>
@@ -866,6 +876,17 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     <h2 class="h-sec">Muscle distribution</h2>
     <div class="radar-wrap" id="radarWrap"></div>
     <div class="radar-legend" id="radarLegend"></div>
+
+    <h2 class="h-sec">Muscles worked</h2>
+    <div class="body-wrap" id="bodyMap"></div>
+    <div class="body-scale">
+      <span>Less</span>
+      <i style="background:var(--accent);opacity:.14"></i>
+      <i style="background:var(--accent);opacity:.45"></i>
+      <i style="background:var(--accent);opacity:.75"></i>
+      <i style="background:var(--accent)"></i>
+      <span>More</span>
+    </div>
 
     <h2 class="h-sec">Set count per muscle group</h2>
     <div id="muscleSets"></div>
@@ -2517,6 +2538,7 @@ function renderStats(){
     statCard("Sets", cur.sets, deltaHTML(cur.sets,prev.sets,v=>v));
 
   renderRadar(cur.muscle, prev.muscle);
+  renderBodyMap(cur.muscle);
   renderMuscleSets(cur.muscle);
 }
 
@@ -2546,16 +2568,93 @@ function renderRadar(cur, prev){
     (hasPrev ? '<span><i style="background:var(--muted)"></i>Previous</span>' : '<span style="opacity:.65">No prior period yet</span>');
 }
 
+
+/* ===================== BODY HEAT MAP =====================
+   A stylised figure, not medical art: each block is tagged with the muscle
+   group it belongs to and shaded by that group's share of total sets. */
+const BODY_FRONT = [
+  ["neutral", '<circle cx="60" cy="19" r="13"/>'],
+  ["neutral", '<rect x="54" y="31" width="12" height="8" rx="3"/>'],
+  ["Shoulders", '<ellipse cx="33" cy="50" rx="11" ry="9"/>'],
+  ["Shoulders", '<ellipse cx="87" cy="50" rx="11" ry="9"/>'],
+  ["Chest", '<rect x="41" y="42" width="18" height="21" rx="6"/>'],
+  ["Chest", '<rect x="61" y="42" width="18" height="21" rx="6"/>'],
+  ["Core", '<rect x="48" y="66" width="24" height="34" rx="7"/>'],
+  ["Arms", '<rect x="21" y="60" width="14" height="28" rx="7"/>'],
+  ["Arms", '<rect x="85" y="60" width="14" height="28" rx="7"/>'],
+  ["Arms", '<rect x="21" y="91" width="14" height="28" rx="7"/>'],
+  ["Arms", '<rect x="85" y="91" width="14" height="28" rx="7"/>'],
+  ["neutral", '<rect x="45" y="102" width="30" height="13" rx="5"/>'],
+  ["Legs", '<rect x="44" y="118" width="14" height="45" rx="6"/>'],
+  ["Legs", '<rect x="62" y="118" width="14" height="45" rx="6"/>'],
+  ["Legs", '<rect x="46" y="167" width="11" height="35" rx="5"/>'],
+  ["Legs", '<rect x="63" y="167" width="11" height="35" rx="5"/>'],
+];
+const BODY_BACK = [
+  ["neutral", '<circle cx="60" cy="19" r="13"/>'],
+  ["neutral", '<rect x="54" y="31" width="12" height="8" rx="3"/>'],
+  ["Shoulders", '<ellipse cx="33" cy="50" rx="11" ry="9"/>'],
+  ["Shoulders", '<ellipse cx="87" cy="50" rx="11" ry="9"/>'],
+  ["Back", '<path d="M42 41 h36 l-4 14 h-28 z"/>'],
+  ["Back", '<path d="M41 57 h38 l-7 30 h-24 z"/>'],
+  ["Back", '<rect x="50" y="89" width="20" height="12" rx="4"/>'],
+  ["Arms", '<rect x="21" y="60" width="14" height="28" rx="7"/>'],
+  ["Arms", '<rect x="85" y="60" width="14" height="28" rx="7"/>'],
+  ["Arms", '<rect x="21" y="91" width="14" height="28" rx="7"/>'],
+  ["Arms", '<rect x="85" y="91" width="14" height="28" rx="7"/>'],
+  ["Legs", '<ellipse cx="52" cy="110" rx="10" ry="9"/>'],
+  ["Legs", '<ellipse cx="68" cy="110" rx="10" ry="9"/>'],
+  ["Legs", '<rect x="44" y="121" width="14" height="42" rx="6"/>'],
+  ["Legs", '<rect x="62" y="121" width="14" height="42" rx="6"/>'],
+  ["Legs", '<rect x="45" y="167" width="12" height="35" rx="5"/>'],
+  ["Legs", '<rect x="63" y="167" width="12" height="35" rx="5"/>'],
+];
+
+/* A neutral silhouette is drawn first so the muscle blocks read as one body
+   rather than floating limbs. */
+const BODY_SILHOUETTE = [
+  '<rect x="38" y="39" width="44" height="66" rx="14"/>',
+  '<rect x="19" y="45" width="18" height="76" rx="9"/>',
+  '<rect x="83" y="45" width="18" height="76" rx="9"/>',
+  '<rect x="42" y="98" width="36" height="20" rx="8"/>',
+  '<rect x="42" y="113" width="17" height="92" rx="8"/>',
+  '<rect x="61" y="113" width="17" height="92" rx="8"/>',
+];
+
+function bodySvg(parts, shareOf){
+  let g='<g fill="var(--paper-2)" stroke="none">'+BODY_SILHOUETTE.join("")+'</g>';
+  parts.forEach(([grp, shape])=>{
+    if(grp==="neutral"){
+      g+='<g fill="var(--paper-2)" stroke="var(--line)" stroke-width="1">'+shape+'</g>';
+      return;
+    }
+    const t=shareOf(grp);                       // 0..1 relative to the busiest group
+    const op=(t<=0) ? 0.09 : (0.20 + 0.78*t);
+    g+='<g fill="var(--accent)" fill-opacity="'+op.toFixed(3)+'">'+shape+'</g>';
+  });
+  return '<svg viewBox="12 4 96 208" role="img" aria-label="Muscles worked">'+g+'</svg>';
+}
+
+function renderBodyMap(cur){
+  const host=document.getElementById("bodyMap"); if(!host) return;
+  const max=Math.max(0,...MUSCLE_ORDER.map(m=>cur[m]||0));
+  const shareOf=g=>max? (cur[g]||0)/max : 0;
+  host.innerHTML =
+    '<div class="body-fig">'+bodySvg(BODY_FRONT,shareOf)+'<div class="body-cap">Front</div></div>'+
+    '<div class="body-fig">'+bodySvg(BODY_BACK,shareOf)+'<div class="body-cap">Back</div></div>';
+}
+
 function renderMuscleSets(cur){
   const host=document.getElementById("muscleSets"); if(!host) return;
   const total=MUSCLE_ORDER.reduce((n,m)=>n+(cur[m]||0),0);
   let h='<div class="msl-head"><span>Muscle</span><span>Sets</span></div>';
   h+='<div class="msl-row total"><span class="n">Total</span><span class="s">'+total+'</span></div>';
   MUSCLE_ORDER.slice().sort((a,b)=>(cur[b]||0)-(cur[a]||0)).forEach(m=>{
-    const v=cur[m]||0;
+    const v=cur[m]||0, pct=total?Math.round(v/total*100):0;
     h+='<div class="msl-row"><div style="flex:1"><span class="n">'+m+'</span>'+
-       '<div class="msl-bar"><i style="width:'+(total?Math.round(v/total*100):0)+'%"></i></div></div>'+
-       '<span class="s'+(v?"":" zero")+'">'+v+'</span></div>';
+       '<div class="msl-bar"><i style="width:'+pct+'%"></i></div></div>'+
+       '<span class="msl-val"><span class="pct">'+pct+'%</span>'+
+       '<span class="s'+(v?"":" zero")+'">'+v+'</span></span></div>';
   });
   host.innerHTML=h;
 }
