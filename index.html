@@ -693,6 +693,37 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .pb-v .m{font-size:14.5px;font-weight:750;font-variant-numeric:tabular-nums;color:var(--accent);}
 .pb-v .e{font-size:10.5px;color:var(--faint);font-weight:650;font-variant-numeric:tabular-nums;margin-top:1px;}
 .hp-empty{font-size:13px;color:var(--muted);padding:4px 0 2px;}
+
+/* ===================== STATISTICS (period cards + muscle distribution) ===================== */
+.period-seg{display:flex;gap:6px;margin:12px 0 2px;}
+.period-seg button{
+  border:1px solid var(--line-2);background:transparent;color:var(--ink-2);border-radius:999px;
+  padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;
+}
+.period-seg button.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px;}
+.stat-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 13px;}
+.stat-card .k{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;font-weight:650;color:var(--muted);}
+.stat-card .d{font-size:11px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.stat-card .d.up{color:var(--good);}
+.stat-card .d.dn{color:var(--accent);}
+.stat-card .d.flat{color:var(--faint);}
+.stat-card .v{font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums;color:var(--ink);}
+.radar-wrap{display:flex;justify-content:center;padding:8px 0 0;}
+.radar-wrap svg{width:100%;max-width:330px;height:auto;overflow:visible;}
+.radar-lab{font-size:10.5px;font-weight:700;fill:var(--muted);}
+.radar-legend{display:flex;justify-content:center;gap:18px;margin-top:2px;font-size:11.5px;color:var(--muted);font-weight:600;}
+.radar-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+.msl-head,.msl-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;}
+.msl-head{border-bottom:1px solid var(--line-2);font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);}
+.msl-row{border-bottom:1px solid var(--line);font-size:14.5px;}
+.msl-row:last-child{border-bottom:0;}
+.msl-row .n{color:var(--ink);font-weight:650;}
+.msl-row.total .n{font-weight:800;}
+.msl-row .s{font-variant-numeric:tabular-nums;font-weight:750;color:var(--ink-2);}
+.msl-row .s.zero{color:var(--faint);font-weight:600;}
+.msl-bar{height:3px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px;max-width:220px;}
+.msl-bar i{display:block;height:100%;background:var(--accent);border-radius:99px;}
 </style>
 </head>
 <body>
@@ -828,7 +859,18 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 
   <!-- ===================== PROGRESS ===================== -->
   <section class="view" id="view-records">
-    <h2 class="h-sec" style="margin-top:8px;">On the up</h2>
+    <h2 class="h-sec" style="margin-top:8px;">Statistics</h2>
+    <div class="period-seg" id="periodSeg"></div>
+    <div class="stat-grid" id="statGrid"></div>
+
+    <h2 class="h-sec">Muscle distribution</h2>
+    <div class="radar-wrap" id="radarWrap"></div>
+    <div class="radar-legend" id="radarLegend"></div>
+
+    <h2 class="h-sec">Set count per muscle group</h2>
+    <div id="muscleSets"></div>
+
+    <h2 class="h-sec">On the up</h2>
     <div id="moversCard" class="movers-card"></div>
 
     <h2 class="h-sec">Personal Records</h2>
@@ -1407,7 +1449,7 @@ function finishWorkout(){
   saveWorkouts(ws);
   if(dayName){ const rts=loadRoutines(); rts[dayName.toLowerCase()]={name:dayName,exercises:exercises.map(e=>e.name)}; saveRoutines(rts); }
   draft=blankDraft(); saveDraft(); sessionPRs={}; stopWorkoutClock(); closeRest();
-  renderToday(); renderHistory(); renderRecords(); updateStats(); renderHome(); syncPush();
+  renderToday(); renderHistory(); renderRecords(); updateStats(); renderHome(); renderStats(); syncPush();
   toast("Saved. Strong work 💪"); switchTab("history");
 }
 
@@ -2393,7 +2435,132 @@ function renderHome(){
   renderPBs(ws);
 }
 
-renderToday(); renderHistory(); renderRecords(); updateStats(); renderHome();
+
+/* ===================== STATISTICS =====================
+   Muscle group is inferred from the exercise name. ORDER MATTERS: Legs sits
+   above Arms so "hamstring curl" is not an arm exercise, and Shoulders sits
+   above Chest so "rear delt fly" is not a chest one. Verified against every
+   exercise name in the real logs (34/34 classified). */
+const MUSCLE_ORDER = ["Chest","Core","Shoulders","Arms","Legs","Back"];
+const MUSCLE_RULES = [
+  [/\b(ab|abs|abdominal|plank|crunch|oblique|hyper[- ]?ext\w*|core)s?\b/i, "Core"],
+  [/\b(squat|lunge|leg|glute|quad|hamstring|calf|calves|abductor|adductor|hip thrust|step[- ]?up|dead ?lift|rdl|roma(?:n|i)nian|romain)s?\b/i, "Legs"],
+  [/\b(shoulder|delt|lateral raise|overhead press|arnold|z-?press|face pull|shrug|upright row)s?\b/i, "Shoulders"],
+  [/\b(bench|chest|pec|fly|flye|push[- ]?up|incline\w* press|dumbbell press|smith machine press)s?\b/i, "Chest"],
+  [/\b(row|pulldown|pull[- ]?up|chin[- ]?up|lat|back|pullover)s?\b/i, "Back"],
+  [/\b(bicep|tricep|curl|pushdown|skull|dip|hammer|preacher)s?\b/i, "Arms"],
+];
+function muscleOf(name){
+  const n=(name||"").trim();
+  for(const [re,g] of MUSCLE_RULES) if(re.test(n)) return g;
+  return null;
+}
+
+let statPeriod = 30;
+
+function statsBetween(ws, fromISO, toISO){
+  const out={workouts:0,sets:0,volume:0,seconds:0,muscle:{}};
+  MUSCLE_ORDER.forEach(m=>out.muscle[m]=0);
+  ws.forEach(w=>{
+    if(!w.date || w.date<fromISO || w.date>toISO) return;
+    out.workouts++; out.seconds+=num(w.durationSec);
+    (w.exercises||[]).forEach(e=>{
+      const g=muscleOf(e.name);
+      (e.sets||[]).forEach(st=>{
+        out.sets++; out.volume+=num(st.weight)*num(st.reps);
+        if(g) out.muscle[g]++;
+      });
+    });
+  });
+  return out;
+}
+
+function fmtDur(sec){
+  if(!sec) return "0min";
+  const h=Math.floor(sec/3600), m=Math.round((sec%3600)/60);
+  return h ? h+"h "+m+"min" : m+"min";
+}
+function deltaHTML(cur, prev, fmt){
+  const d=cur-prev, cls=d>0?"up":(d<0?"dn":"flat"), arrow=d>0?"\u2191":(d<0?"\u2193":"\u2013");
+  return '<span class="d '+cls+'">'+arrow+(d?" "+fmt(Math.abs(d)):"")+'</span>';
+}
+function statCard(k,v,d){
+  return '<div class="stat-card"><div class="k"><span>'+k+'</span>'+d+'</div><div class="v">'+v+'</div></div>';
+}
+
+function renderStats(){
+  const ws=loadWorkouts();
+  const seg=document.getElementById("periodSeg");
+  if(seg && !seg.dataset.built){
+    seg.dataset.built="1";
+    [[7,"7 days"],[30,"30 days"],[90,"90 days"]].forEach(([d,label])=>{
+      const b=document.createElement("button"); b.type="button"; b.textContent=label;
+      b.onclick=()=>{ statPeriod=d; renderStats(); };
+      seg.appendChild(b);
+    });
+  }
+  if(seg) [...seg.children].forEach((b,i)=>b.classList.toggle("sel",[7,30,90][i]===statPeriod));
+
+  const today=new Date(); today.setHours(12,0,0,0);
+  const curFrom=new Date(today); curFrom.setDate(today.getDate()-statPeriod+1);
+  const prevTo=new Date(curFrom); prevTo.setDate(curFrom.getDate()-1);
+  const prevFrom=new Date(prevTo); prevFrom.setDate(prevTo.getDate()-statPeriod+1);
+
+  const cur=statsBetween(ws,isoOf(curFrom),isoOf(today));
+  const prev=statsBetween(ws,isoOf(prevFrom),isoOf(prevTo));
+
+  const grid=document.getElementById("statGrid");
+  if(grid) grid.innerHTML =
+    statCard("Workouts", cur.workouts, deltaHTML(cur.workouts,prev.workouts,v=>v)) +
+    statCard("Duration", fmtDur(cur.seconds), deltaHTML(cur.seconds,prev.seconds,fmtDur)) +
+    statCard("Volume", fmtVol(cur.volume)+" "+unit, deltaHTML(cur.volume,prev.volume,fmtVol)) +
+    statCard("Sets", cur.sets, deltaHTML(cur.sets,prev.sets,v=>v));
+
+  renderRadar(cur.muscle, prev.muscle);
+  renderMuscleSets(cur.muscle);
+}
+
+function renderRadar(cur, prev){
+  const wrap=document.getElementById("radarWrap"); if(!wrap) return;
+  const C=150, R=92, N=MUSCLE_ORDER.length;
+  const max=Math.max(1,...MUSCLE_ORDER.map(m=>Math.max(cur[m]||0, prev[m]||0)));
+  const pt=(i,r)=>{ const a=(-90+i*360/N)*Math.PI/180; return [C+Math.cos(a)*r, C+Math.sin(a)*r]; };
+  const poly=o=>MUSCLE_ORDER.map((m,i)=>pt(i,R*((o[m]||0)/max)).map(n=>n.toFixed(1)).join(",")).join(" ");
+  let g="";
+  for(let ring=1;ring<=3;ring++){
+    const r=R*ring/3;
+    g+='<polygon points="'+MUSCLE_ORDER.map((m,i)=>pt(i,r).map(n=>n.toFixed(1)).join(",")).join(" ")+'" fill="none" stroke="var(--line)" stroke-width="1"/>';
+  }
+  MUSCLE_ORDER.forEach((m,i)=>{
+    const [x,y]=pt(i,R);
+    g+='<line x1="'+C+'" y1="'+C+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>';
+    const [lx,ly]=pt(i,R+24);
+    g+='<text class="radar-lab" x="'+lx.toFixed(1)+'" y="'+(ly+4).toFixed(1)+'" text-anchor="middle">'+m+'</text>';
+  });
+  const hasPrev=MUSCLE_ORDER.some(m=>(prev[m]||0)>0);
+  if(hasPrev) g+='<polygon points="'+poly(prev)+'" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="4 3"/>';
+  g+='<polygon points="'+poly(cur)+'" fill="var(--accent)" fill-opacity="0.26" stroke="var(--accent)" stroke-width="2"/>';
+  wrap.innerHTML='<svg viewBox="22 20 256 262" role="img" aria-label="Muscle distribution">'+g+'</svg>';
+  const leg=document.getElementById("radarLegend");
+  if(leg) leg.innerHTML='<span><i style="background:var(--accent)"></i>Current</span>'+
+    (hasPrev ? '<span><i style="background:var(--muted)"></i>Previous</span>' : '<span style="opacity:.65">No prior period yet</span>');
+}
+
+function renderMuscleSets(cur){
+  const host=document.getElementById("muscleSets"); if(!host) return;
+  const total=MUSCLE_ORDER.reduce((n,m)=>n+(cur[m]||0),0);
+  let h='<div class="msl-head"><span>Muscle</span><span>Sets</span></div>';
+  h+='<div class="msl-row total"><span class="n">Total</span><span class="s">'+total+'</span></div>';
+  MUSCLE_ORDER.slice().sort((a,b)=>(cur[b]||0)-(cur[a]||0)).forEach(m=>{
+    const v=cur[m]||0;
+    h+='<div class="msl-row"><div style="flex:1"><span class="n">'+m+'</span>'+
+       '<div class="msl-bar"><i style="width:'+(total?Math.round(v/total*100):0)+'%"></i></div></div>'+
+       '<span class="s'+(v?"":" zero")+'">'+v+'</span></div>';
+  });
+  host.innerHTML=h;
+}
+
+renderToday(); renderHistory(); renderRecords(); updateStats(); renderHome(); renderStats();
 syncPull();
 planPull().then(maybeAutoLoadToday);
 setTimeout(checkForUpdate, 1500);
