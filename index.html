@@ -808,9 +808,11 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .wp-pal{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
 .wp-chip{
   border:1px solid var(--line-2);background:var(--card);color:var(--ink);
-  border-radius:999px;padding:9px 15px;font-size:13.5px;font-weight:700;cursor:grab;
+  border-radius:999px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:grab;
   font-family:inherit;touch-action:manipulation;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+.wp-pal{max-height:168px;overflow-y:auto;}
 .wp-chip.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
 .wp-chip small{color:var(--muted);font-weight:600;margin-left:6px;}
 .wp-chip.sel small{color:var(--on-accent);opacity:.75;}
@@ -823,9 +825,10 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
   text-transform:uppercase;color:var(--faint);}
 .wp-day.today .d{color:var(--accent);}
 .wp-day .slot{
-  flex:1;min-height:42px;border:1px dashed var(--line-2);border-radius:var(--r-md);
+  flex:1;min-width:0;min-height:42px;border:1px dashed var(--line-2);border-radius:var(--r-md);
   display:flex;align-items:center;padding:0 13px;font-size:14px;color:var(--faint);
   font-weight:600;cursor:pointer;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .wp-day .slot.filled{border-style:solid;border-color:var(--accent);background:var(--accent-wash);
   color:var(--ink);font-weight:700;}
@@ -848,6 +851,13 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .wp-day .slot.lifted{border-style:solid;border-color:var(--accent);
   background:var(--accent);color:var(--on-accent);font-weight:800;}
 .wp-day .slot.filled{cursor:grab;}
+
+.welcome{margin:16px 0 4px;padding:18px 18px 19px;border-radius:var(--r-lg);
+  background:var(--accent-wash);border:1px solid var(--accent);}
+.welcome .w-t{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
+.welcome .w-s{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin-top:7px;}
+
+.stat-card .n{font-size:10.5px;color:var(--faint);font-weight:600;margin-top:3px;}
 </style>
 </head>
 <body>
@@ -874,6 +884,10 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     </div>
 
 
+    <div class="welcome" id="welcomeCard" style="display:none;">
+      <div class="w-t">Welcome, Hannah</div>
+      <div class="w-s">This is yours. Add your first exercise below, put in what you lift, and everything else fills itself in as you go.</div>
+    </div>
     <div class="home-mini" id="homeMini"></div>
     <div class="hp" id="homePanel">
 
@@ -985,6 +999,12 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 
   <!-- ===================== PROGRESS ===================== -->
   <section class="view" id="view-records">
+    <div id="progressEmpty" class="empty" style="display:none;">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21h14M7 21V11M12 21V5M17 21v-7"/></svg></div>
+      <div class="lead">Nothing to show yet</div>
+      <div class="sub">Log your first workout and this fills up with your records, the muscles you have worked and how your lifts are climbing.</div>
+    </div>
+    <div id="progressBody">
     <h2 class="h-sec" style="margin-top:8px;">Statistics</h2>
     <div class="period-seg" id="periodSeg"></div>
     <div class="stat-grid" id="statGrid"></div>
@@ -1020,6 +1040,7 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21h14M7 21V11M12 21V5M17 21v-7"/></svg></div>
       <div class="lead">No records yet</div>
       <div class="sub">Log some sets and your bests show up here.</div>
+    </div>
     </div>
   </section>
 
@@ -2469,11 +2490,12 @@ function renderPlan(){
   if(!ps || !Array.isArray(ps.days) || !ps.days.length){
     empty.style.display="block"; empty.classList.remove("empty"); host.innerHTML="";
     lbl.textContent="Your week"; sub.textContent="";
-    prevB.disabled=true; nextB.disabled=true;
+    prevB.style.display="none"; nextB.style.display="none";
     renderWeekPlanner();
     return;
   }
   empty.style.display="none";
+  prevB.style.display=""; nextB.style.display="";
   const viewed=(planViewWeek!=null?planViewWeek:ps.week);
   lbl.textContent=(ps.week_label||("Week "+viewed))+(viewed===ps.current_week?" · This week":"");
   sub.textContent=ps.week_subtitle||"";
@@ -2834,7 +2856,18 @@ function workoutInProgress(){
 function syncHomeMode(){
   const panel=document.getElementById("homePanel");
   const mini=document.getElementById("homeMini");
+  const welcome=document.getElementById("welcomeCard");
   if(!panel || !mini) return;
+
+  // First run: a streak of 0, an empty 12-week grid and an empty records list
+  // is a discouraging first screen, and it buries the Add Exercise button.
+  if(!loadWorkouts().length && !workoutInProgress()){
+    panel.style.display="none"; mini.style.display="none";
+    if(welcome) welcome.style.display="block";
+    return;
+  }
+  if(welcome) welcome.style.display="none";
+
   const busy=workoutInProgress();
   panel.style.display = busy ? "none" : "";
   mini.style.display  = busy ? "flex" : "none";
@@ -2949,13 +2982,20 @@ Object.entries(GROUP_MUSCLES).forEach(([g,ms])=>ms.forEach(m=>MUSCLE_GROUP[m]=g)
 
 let statPeriod = 30;
 
+/* A logged "duration" under this is the clock never having run, not a real
+   session - the live data has 21 workouts stamped 60s, several with 20+ sets.
+   Counting those makes the Duration card read 12min across 19 workouts. */
+const MIN_TRACKED_SEC = 300;
+
 function statsBetween(ws, fromISO, toISO){
-  const out={workouts:0,sets:0,volume:0,seconds:0,muscle:{},group:{}};
+  const out={workouts:0,sets:0,volume:0,seconds:0,timed:0,muscle:{},group:{}};
   Object.keys(MUSCLE_GROUP).forEach(m=>out.muscle[m]=0);
   MUSCLE_ORDER.forEach(g=>out.group[g]=0);
   ws.forEach(w=>{
     if(!w.date || w.date<fromISO || w.date>toISO) return;
-    out.workouts++; out.seconds+=num(w.durationSec);
+    out.workouts++;
+    const dur=num(w.durationSec);
+    if(dur>=MIN_TRACKED_SEC){ out.seconds+=dur; out.timed++; }
     (w.exercises||[]).forEach(e=>{
       const t=targetsFor(e.name);
       const n=(e.sets||[]).length;
@@ -2979,8 +3019,9 @@ function deltaHTML(cur, prev, fmt){
   const d=cur-prev, cls=d>0?"up":(d<0?"dn":"flat"), arrow=d>0?"\u2191":(d<0?"\u2193":"\u2013");
   return '<span class="d '+cls+'">'+arrow+(d?" "+fmt(Math.abs(d)):"")+'</span>';
 }
-function statCard(k,v,d){
-  return '<div class="stat-card"><div class="k"><span>'+k+'</span>'+d+'</div><div class="v">'+v+'</div></div>';
+function statCard(k,v,d,note){
+  return '<div class="stat-card"><div class="k"><span>'+k+'</span>'+d+'</div><div class="v">'+v+'</div>'+
+    (note?'<div class="n">'+note+'</div>':'')+'</div>';
 }
 
 /* The body map and the muscle table step through calendar weeks of their own,
@@ -3047,6 +3088,13 @@ function renderWeekView(){
 
 function renderStats(){
   const ws=loadWorkouts();
+  const pBody=document.getElementById("progressBody"), pEmpty=document.getElementById("progressEmpty");
+  if(pBody && pEmpty){
+    const bare=!ws.length;
+    pBody.style.display = bare ? "none" : "";
+    pEmpty.style.display = bare ? "block" : "none";
+    if(bare) return;
+  }
   const seg=document.getElementById("periodSeg");
   if(seg && !seg.dataset.built){
     seg.dataset.built="1";
@@ -3069,7 +3117,12 @@ function renderStats(){
   const grid=document.getElementById("statGrid");
   if(grid) grid.innerHTML =
     statCard("Workouts", cur.workouts, deltaHTML(cur.workouts,prev.workouts,v=>v)) +
-    statCard("Duration", fmtDur(cur.seconds), deltaHTML(cur.seconds,prev.seconds,fmtDur)) +
+    // no timed sessions this period -> a delta against a period that had them
+    // reads as a decline in training rather than missing data
+    statCard("Duration", fmtDur(cur.seconds),
+             (cur.timed && prev.timed) ? deltaHTML(cur.seconds,prev.seconds,fmtDur) : "",
+             cur.timed && cur.timed<cur.workouts ? ("timed on "+cur.timed+" of "+cur.workouts) :
+             (!cur.timed && cur.workouts ? "not timed" : "")) +
     statCard("Volume", fmtVol(cur.volume)+" "+unit, deltaHTML(cur.volume,prev.volume,fmtVol)) +
     statCard("Sets", cur.sets, deltaHTML(cur.sets,prev.sets,v=>v));
 
