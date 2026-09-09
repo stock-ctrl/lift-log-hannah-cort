@@ -1211,8 +1211,31 @@ const loadDraft = () => { if(DEMO) return blankDraft(); try{ return JSON.parse(l
 const saveDraft = () => { if(DEMO) return; localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); };
 const loadBW = () => { if(DEMO) return DEMO_BW.slice(); try{ return JSON.parse(localStorage.getItem(BW_KEY))||[]; }catch(e){ return []; } };
 const saveBW = a => { if(DEMO) return; localStorage.setItem(BW_KEY, JSON.stringify(a)); };
-const loadRoutines = () => { try{ return JSON.parse(localStorage.getItem(ROUTINES_KEY))||{}; }catch(e){ return {}; } };
-const saveRoutines = o => localStorage.setItem(ROUTINES_KEY, JSON.stringify(o));
+/* Demo mode writes to its OWN keys. The demo and the real app share an origin,
+   so seeding the real ones would leave sample routines behind in the browser of
+   whoever previewed it. Demo routines are seeded from the sample workouts, so
+   the chips on the Plan tab match the sample history. */
+const routinesKey = () => DEMO ? ROUTINES_KEY+"_demo" : ROUTINES_KEY;
+function seedDemoRoutines(){
+  const out={};
+  DEMO_WORKOUTS.forEach(w=>{
+    const nm=(w.name||"").trim(); if(!nm) return;
+    const k=nm.toLowerCase();
+    // keep the fullest version of each named day
+    const ex=(w.exercises||[]).map(e=>e.name);
+    if(!out[k] || ex.length>out[k].exercises.length) out[k]={name:nm, exercises:ex};
+  });
+  return out;
+}
+const loadRoutines = () => {
+  try{
+    const raw=JSON.parse(localStorage.getItem(routinesKey()));
+    if(raw && Object.keys(raw).length) return raw;
+  }catch(e){}
+  if(DEMO){ const seed=seedDemoRoutines(); localStorage.setItem(routinesKey(), JSON.stringify(seed)); return seed; }
+  return {};
+};
+const saveRoutines = o => localStorage.setItem(routinesKey(), JSON.stringify(o));
 function blankDraft(){ return { exercises:[], feel:"", note:"", startedAt:null, lastInput:null, name:"", fromPlan:false, planToday:false }; }
 let draft = loadDraft();
 let unit = localStorage.getItem(UNIT_KEY) || "lb";
@@ -2321,7 +2344,7 @@ function planChevron(open){ return '<span class="pd-chev"><svg viewBox="0 0 24 2
    has already done: every named workout becomes a chip, and she assigns chips
    to weekdays. Tap-to-assign is the primary interaction because HTML5 drag and
    drop does not fire on iOS Safari; dragging is added on top for desktop. */
-const WEEKPLAN_KEY = "hannahc_weekplan_v1";
+const WEEKPLAN_KEY = "hannahc_weekplan_v1" + (DEMO ? "_demo" : "");
 const WP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 let wpPicked = null;
 
