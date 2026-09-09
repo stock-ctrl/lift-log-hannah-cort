@@ -755,6 +755,17 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .sr-row .reps{color:var(--ink);font-weight:700;}
 .sr-row .pb{color:var(--ink-2);font-weight:650;}
 .sr-more{font-size:11.5px;color:var(--faint);padding:8px 0 0;font-weight:600;}
+
+.metric-seg{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;}
+.metric-seg::-webkit-scrollbar{display:none;}
+.metric-seg button{
+  flex:0 0 auto;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);
+  border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;
+  font-family:inherit;white-space:nowrap;
+}
+.metric-seg button.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+.metric-cap{padding:12px 0 2px;font-size:13px;color:var(--faint);font-variant-numeric:tabular-nums;}
+.metric-cap b{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin-right:7px;}
 </style>
 </head>
 <body>
@@ -917,7 +928,7 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     <div id="moversCard" class="movers-card"></div>
 
     <h2 class="h-sec">Personal Records</h2>
-    <p class="note-txt" style="margin-top:0;">Heaviest set per lift. <b>e1RM</b> is your estimated one-rep max, so you can compare days at any reps. Tap a lift to see its progress chart.</p>
+    <p class="note-txt" style="margin-top:0;">Heaviest set per lift. <b>Est. 1RM</b> estimates your one-rep max so you can compare a 12-rep day against an 8-rep day. It is least reliable above about 10 reps. Tap a lift to see its progress chart.</p>
     <div id="recordsList"></div>
     <div id="recordsEmpty" class="empty">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21h14M7 21V11M12 21V5M17 21v-7"/></svg></div>
@@ -1456,7 +1467,7 @@ function checkPR(name,set){
 function celebratePR(name,set,e1){
   const b=document.getElementById("prbanner");
   document.getElementById("prbannerText").textContent =
-    name+" · "+num(set.weight)+" "+unit+" × "+num(set.reps)+"  (e1RM "+e1+")";
+    name+" · "+num(set.weight)+" "+unit+" × "+num(set.reps)+"  (est. 1RM "+e1+")";
   b.classList.add("show"); confetti();
   if(navigator.vibrate){ try{navigator.vibrate([60,40,60,40,120]);}catch(e){} }
   clearTimeout(b._t); b._t=setTimeout(()=>b.classList.remove("show"),4200);
@@ -1616,14 +1627,75 @@ function buildChart(series){
     '</svg>';
   return wrap.firstChild;
 }
-function exerciseSeries(name){
+const CHART_METRICS = [
+  { id:"weight", label:"Heaviest Weight", suffix:u=>" "+u },
+  { id:"e1rm",   label:"Est. 1RM",        suffix:u=>" "+u },
+  { id:"setvol", label:"Best Set Volume", suffix:u=>" "+u },
+  { id:"reps",   label:"Total Reps",      suffix:()=>" reps" },
+];
+
+/* One point per workout containing this lift.
+   weight = heaviest single set, e1rm = best Epley estimate,
+   setvol = biggest single set (weight x reps), reps = total reps that day. */
+function exerciseSeries(name, metric){
+  metric = metric || "weight";
   const key=name.trim().toLowerCase(); const out=[];
-  loadWorkouts().slice().sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id)).forEach(w=>{
-    let best=0;
-    w.exercises.forEach(e=>{ if(e.name.trim().toLowerCase()===key) e.sets.forEach(s=>{ const v=epley(s.weight,s.reps); if(v>best)best=v; }); });
-    if(best>0) out.push({date:w.date,value:best});
-  });
+  loadWorkouts().slice()
+    .sort((a,b)=>a.date.localeCompare(b.date)||String(a.id).localeCompare(String(b.id)))
+    .forEach(w=>{
+      let best=0, totalReps=0, seen=false;
+      (w.exercises||[]).forEach(e=>{
+        if((e.name||"").trim().toLowerCase()!==key) return;
+        (e.sets||[]).forEach(st=>{
+          const wt=num(st.weight), rp=num(st.reps);
+          if(!rp) return;
+          seen=true; totalReps+=rp;
+          let v;
+          if(metric==="weight")      v=wt;
+          else if(metric==="e1rm")   v=epley(wt,rp);
+          else if(metric==="setvol") v=wt*rp;
+          else                       v=0;
+          if(v>best) best=v;
+        });
+      });
+      if(!seen) return;
+      const value=(metric==="reps")?totalReps:best;
+      if(value>0) out.push({date:w.date, value:Math.round(value)});
+    });
   return out;
+}
+
+function buildMetricChart(name, u){
+  const box=document.createElement("div");
+  const cap=document.createElement("div"); cap.className="metric-cap";
+  const seg=document.createElement("div"); seg.className="metric-seg";
+  const host=document.createElement("div");
+  let cur="weight";                     // a measured fact by default, not an estimate
+  const draw=()=>{
+    host.innerHTML="";
+    const m=CHART_METRICS.find(x=>x.id===cur);
+    const series=exerciseSeries(name,cur);
+    if(series.length){
+      const last=series[series.length-1];
+      cap.innerHTML='<b>'+last.value.toLocaleString()+m.suffix(u)+'</b> <span>'+shortDate(last.date)+'</span>';
+    } else cap.innerHTML="";
+    if(series.length>=2) host.appendChild(buildChart(series));
+    else {
+      const n=document.createElement("div"); n.className="chart-note";
+      n.textContent="Log this lift on another day to watch the line move.";
+      host.appendChild(n);
+    }
+    [...seg.children].forEach(b=>b.classList.toggle("sel", b.dataset.m===cur));
+  };
+  CHART_METRICS.forEach(m=>{
+    const b=document.createElement("button"); b.type="button";
+    b.textContent=m.label; b.dataset.m=m.id;
+    b.onclick=ev=>{ ev.stopPropagation(); cur=m.id; draw(); };
+    seg.appendChild(b);
+  });
+  box.appendChild(cap); box.appendChild(seg); box.appendChild(host);
+  draw();
+  return box;
 }
 
 /* ======================= PROGRESS: on the up ======================= */
@@ -1655,7 +1727,7 @@ function renderMovers(){
   up.slice(0,5).forEach(m=>{
     const row=document.createElement("div"); row.className="mv-row";
     row.innerHTML='<div class="mv-nm">'+escapeHtml(m.name)+'</div>'+
-      '<div class="mv-fig num"><span class="mv-from">'+m.first+'</span><span class="mv-arw">&#8594;</span><span class="mv-to">'+m.last+'</span><span class="mv-e1">e1RM</span></div>';
+      '<div class="mv-fig num"><span class="mv-from">'+m.first+'</span><span class="mv-arw">&#8594;</span><span class="mv-to">'+m.last+'</span><span class="mv-e1">EST. 1RM</span></div>';
     list.appendChild(row);
   });
   card.appendChild(list);
@@ -1698,7 +1770,7 @@ function buildRecordBlocks(name,u){
       (d?'<div class="d">'+shortDate(d)+'</div>':'')+'</div><div class="v">'+v+'</div></div>';
   let h='<div class="rec-h">Personal records</div>';
   if(r.heaviest)   h+=row("Heaviest weight", r.heaviest.v+" "+u, r.heaviest.date);
-  if(r.best1rm)    h+=row("Best 1RM (est.)", r.best1rm.v+" "+u, r.best1rm.date);
+  if(r.best1rm)    h+=row("Best est. 1RM", r.best1rm.v+" "+u, r.best1rm.date);
   if(r.bestSetVol) h+=row("Best set volume", r.bestSetVol.weight+" "+u+" \u00d7 "+r.bestSetVol.reps, r.bestSetVol.date);
   if(r.bestSessVol)h+=row("Best session volume", fmtVol(r.bestSessVol.v)+" "+u, r.bestSessVol.date);
 
@@ -1733,14 +1805,12 @@ function renderRecords(){
     const r=best[k];
     const row=document.createElement("div"); row.className="pr";
     row.innerHTML='<div><div class="nm">'+escapeHtml(k)+'</div><div class="sub">'+shortDate(r.date)+'</div></div>'+
-      '<div class="r num"><div class="big">'+r.weight+' '+r.unit+' × '+r.reps+'</div><div class="e1">e1RM '+r.e1+' '+r.unit+'</div></div>';
+      '<div class="r num"><div class="big">'+r.weight+' '+r.unit+' × '+r.reps+'</div><div class="e1">est. 1RM '+r.e1+' '+r.unit+'</div></div>';
     const chart=document.createElement("div"); chart.className="pr-chart";
     let built=false;
     row.onclick=()=>{
       if(!built){
-        const series=exerciseSeries(k);
-        if(series.length>=2) chart.appendChild(buildChart(series));
-        else { const note=document.createElement("div"); note.className="chart-note"; note.textContent="Log this lift on another day to watch the line climb."; chart.appendChild(note); }
+        chart.appendChild(buildMetricChart(k, r.unit));
         chart.appendChild(buildRecordBlocks(k, r.unit));
         built=true;
       }
@@ -2511,7 +2581,7 @@ function renderPBs(ws){
     const right = document.createElement("div"); right.className = "pb-v";
     right.innerHTML = '<div class="m"></div><div class="e"></div>';
     right.querySelector(".m").textContent = r.weight + " " + r.unit + " \u00d7 " + r.reps;
-    right.querySelector(".e").textContent = "e1RM " + r.e1 + " " + r.unit;
+    right.querySelector(".e").textContent = "est. 1RM " + r.e1 + " " + r.unit;
     row.appendChild(left); row.appendChild(right); list.appendChild(row);
   });
 }
