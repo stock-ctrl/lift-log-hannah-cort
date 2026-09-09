@@ -766,6 +766,29 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .metric-seg button.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
 .metric-cap{padding:12px 0 2px;font-size:13px;color:var(--faint);font-variant-numeric:tabular-nums;}
 .metric-cap b{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin-right:7px;}
+
+/* ===================== WEEK NAVIGATOR ===================== */
+.wknav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 2px;}
+.wknav button{
+  width:34px;height:34px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line-2);
+  background:transparent;color:var(--ink-2);font-size:16px;font-weight:800;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;
+}
+.wknav button:disabled{opacity:.3;cursor:default;}
+.wknav .lbl{flex:1;text-align:center;font-size:13.5px;font-weight:750;color:var(--ink);
+  font-variant-numeric:tabular-nums;}
+.wknav .lbl small{display:block;font-size:11px;font-weight:600;color:var(--faint);margin-top:2px;}
+.wkdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:10px 0 2px;}
+.wkday{text-align:center;}
+.wkday .l{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--faint);margin-bottom:5px;}
+.wkday .c{height:30px;border-radius:999px;border:1px solid var(--line);display:flex;
+  align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:var(--faint);
+  font-variant-numeric:tabular-nums;}
+.wkday .c.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+.wkday .c.today{border-color:var(--accent);color:var(--accent);}
+.wkday .c.today.on{color:var(--on-accent);}
+.wkday .c.future{opacity:.4;}
+.wk-empty{font-size:13px;color:var(--muted);text-align:center;padding:18px 0;}
 </style>
 </head>
 <body>
@@ -910,6 +933,8 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     <div class="radar-legend" id="radarLegend"></div>
 
     <h2 class="h-sec">Muscles worked</h2>
+    <div class="wknav" id="wkNav"></div>
+    <div class="wkdays" id="wkDays"></div>
     <div class="body-wrap" id="bodyMap"></div>
     <div class="body-scale">
       <span>Less</span>
@@ -921,7 +946,7 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     </div>
 
     <h2 class="h-sec">Set count per muscle group</h2>
-    <p class="note-txt" style="margin-top:0;">A set counts toward every muscle it works, so these add up to more than your total set count. Secondary muscles count as half a set.</p>
+    <p class="note-txt" id="wkNote" style="margin-top:0;">A set counts toward every muscle it works, so these add up to more than your total set count. Secondary muscles count as half a set.</p>
     <div id="muscleSets"></div>
 
     <h2 class="h-sec">On the up</h2>
@@ -2709,6 +2734,68 @@ function statCard(k,v,d){
   return '<div class="stat-card"><div class="k"><span>'+k+'</span>'+d+'</div><div class="v">'+v+'</div></div>';
 }
 
+/* The body map and the muscle table step through calendar weeks of their own,
+   independent of the 7/30/90 selector that drives the cards and the radar -
+   the same split Hevy uses between "Muscle distribution (Chart)" and
+   "(Body)". weekOffset 0 = this week, -1 = last week, and so on. */
+let weekOffset = 0;
+
+function weekRange(offset){
+  const mon=mondayOf(new Date());
+  mon.setDate(mon.getDate()+offset*7);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  return {from:mon, to:sun};
+}
+
+function renderWeekView(){
+  const nav=document.getElementById("wkNav");
+  const days=document.getElementById("wkDays");
+  if(!nav || !days) return;
+
+  const {from,to}=weekRange(weekOffset);
+  const ws=loadWorkouts();
+  const stats=statsBetween(ws, isoOf(from), isoOf(to));
+
+  const fmt=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  const yr = from.getFullYear()!==new Date().getFullYear() ? " "+from.getFullYear() : "";
+  const label = weekOffset===0 ? "This week" : (weekOffset===-1 ? "Last week" : fmt(from)+" \u2013 "+fmt(to)+yr);
+  const sub   = weekOffset===0 || weekOffset===-1 ? fmt(from)+" \u2013 "+fmt(to)+yr : "";
+
+  nav.innerHTML =
+    '<button type="button" id="wkPrev" aria-label="Previous week">\u2039</button>'+
+    '<div class="lbl">'+label+(sub?'<small>'+sub+'</small>':'')+'</div>'+
+    '<button type="button" id="wkNext" aria-label="Next week"'+(weekOffset>=0?" disabled":"")+'>\u203a</button>';
+  document.getElementById("wkPrev").onclick=()=>{ weekOffset--; renderWeekView(); };
+  document.getElementById("wkNext").onclick=()=>{ if(weekOffset<0){ weekOffset++; renderWeekView(); } };
+
+  // which days were trained that week
+  const trained={};
+  ws.forEach(w=>{ if(w.date>=isoOf(from) && w.date<=isoOf(to)) trained[w.date]=true; });
+  const L=["M","T","W","T","F","S","S"], todayISO=isoOf(new Date());
+  let h="";
+  for(let i=0;i<7;i++){
+    const d=new Date(from); d.setDate(from.getDate()+i);
+    const iso=isoOf(d);
+    const cls="c"+(trained[iso]?" on":"")+(iso===todayISO?" today":"")+(iso>todayISO?" future":"");
+    h+='<div class="wkday"><div class="l">'+L[i]+'</div><div class="'+cls+'">'+d.getDate()+'</div></div>';
+  }
+  days.innerHTML=h;
+
+  const any=Object.values(stats.muscle).some(v=>v>0);
+  const map=document.getElementById("bodyMap");
+  const tbl=document.getElementById("muscleSets");
+  const note=document.getElementById("wkNote");
+  if(!any){
+    if(map) map.innerHTML='<div class="wk-empty" style="grid-column:1/-1">No workouts logged this week.</div>';
+    if(tbl) tbl.innerHTML="";
+    if(note) note.style.display="none";
+    return;
+  }
+  if(note) note.style.display="";
+  renderBodyMap(stats.muscle);
+  renderMuscleSets(stats.group, stats.muscle);
+}
+
 function renderStats(){
   const ws=loadWorkouts();
   const seg=document.getElementById("periodSeg");
@@ -2738,8 +2825,7 @@ function renderStats(){
     statCard("Sets", cur.sets, deltaHTML(cur.sets,prev.sets,v=>v));
 
   renderRadar(cur.group, prev.group);
-  renderBodyMap(cur.muscle);
-  renderMuscleSets(cur.group, cur.muscle);
+  renderWeekView();
 }
 
 function renderRadar(cur, prev){
