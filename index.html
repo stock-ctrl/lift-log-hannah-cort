@@ -844,6 +844,10 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
   flex:0 0 auto;border:0;border-radius:999px;background:var(--accent);color:var(--on-accent);
   padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;
 }
+
+.wp-day .slot.lifted{border-style:solid;border-color:var(--accent);
+  background:var(--accent);color:var(--on-accent);font-weight:800;}
+.wp-day .slot.filled{cursor:grab;}
 </style>
 </head>
 <body>
@@ -2346,7 +2350,8 @@ function planChevron(open){ return '<span class="pd-chev"><svg viewBox="0 0 24 2
    drop does not fire on iOS Safari; dragging is added on top for desktop. */
 const WEEKPLAN_KEY = "hannahc_weekplan_v1" + (DEMO ? "_demo" : "");
 const WP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-let wpPicked = null;
+let wpPicked = null;     // routine key chosen from the palette (copy)
+let wpMoveFrom = null;   // day index picked up for moving (move/swap)
 
 const loadWeekPlan = () => { try{ return JSON.parse(localStorage.getItem(WEEKPLAN_KEY))||{}; }catch(e){ return {}; } };
 const saveWeekPlan = o => localStorage.setItem(WEEKPLAN_KEY, JSON.stringify(o));
@@ -2365,7 +2370,7 @@ function renderWeekPlanner(){
     return;
   }
 
-  let h='<div class="wp-lead">Tap a workout, then tap a day to put it there. Tap it again to change it.</div>';
+  let h='<div class="wp-lead">Tap a workout, then tap a day to put it there.<br>To move one, tap the day it is on, then tap where you want it \u2014 landing on a day that is taken swaps them.</div>';
   h+='<div class="wp-pal" id="wpPal">';
   keys.forEach(k=>{
     h+='<button type="button" class="wp-chip" draggable="true" data-k="'+escapeHtml(k)+'">'+
@@ -2376,18 +2381,20 @@ function renderWeekPlanner(){
     const k=plan[i], rt=k?rts[k]:null;
     h+='<div class="wp-day'+(i===wpTodayIdx()?" today":"")+'" data-i="'+i+'">'+
        '<div class="d">'+d+'</div>'+
-       '<div class="slot'+(rt?" filled":"")+'" data-i="'+i+'">'+(rt?escapeHtml(rt.name):"Rest")+'</div>'+
+       '<div class="slot'+(rt?" filled":"")+(i===wpMoveFrom?" lifted":"")+'"'+(rt?' draggable="true"':'')+' data-i="'+i+'">'+(rt?escapeHtml(rt.name):"Rest")+'</div>'+
        '<button type="button" class="x'+(rt?"":" hide")+'" data-i="'+i+'" aria-label="Clear">\u00d7</button>'+
        '</div>';
   });
   h+='</div>';
   host.innerHTML=h;
 
-  const hint=document.getElementById("wpHint");
-  const setHint=t=>{ if(hint) hint.textContent=t||""; };
+  const setHint=t=>{ const el=document.getElementById("wpHint"); if(el) el.textContent=t||""; };
+  if(wpMoveFrom!==null) setHint("Now tap the day to move it to");
+  else if(wpPicked) setHint("Now tap a day");
 
   host.querySelectorAll(".wp-chip").forEach(c=>{
     c.onclick=()=>{
+      wpMoveFrom = null;
       wpPicked = (wpPicked===c.dataset.k) ? null : c.dataset.k;
       host.querySelectorAll(".wp-chip").forEach(x=>x.classList.toggle("sel",x.dataset.k===wpPicked));
       setHint(wpPicked ? "Now tap a day" : "");
@@ -2401,17 +2408,42 @@ function renderWeekPlanner(){
     toast("Set "+WP_DAYS[i]+" to "+(loadRoutines()[k]||{}).name);
   };
 
+  /* Moving a day onto another day swaps them rather than overwriting, so a
+     mis-tap never silently destroys an assignment. */
+  const moveDay=(from,to)=>{
+    if(from===to) return;
+    const pl=loadWeekPlan();
+    const a=pl[from], b=pl[to];
+    if(b===undefined) delete pl[from]; else pl[from]=b;
+    pl[to]=a;
+    saveWeekPlan(pl);
+    wpMoveFrom=null; wpPicked=null;
+    renderWeekPlanner(); renderTodayPlanCard();
+    toast(b===undefined ? ("Moved to "+WP_DAYS[to]) : ("Swapped "+WP_DAYS[from]+" and "+WP_DAYS[to]));
+  };
+
   host.querySelectorAll(".slot").forEach(sl=>{
     const i=+sl.dataset.i;
-    sl.onclick=()=>{ if(wpPicked) assign(i,wpPicked); else setHint("Pick a workout above first"); };
+    const filled=sl.classList.contains("filled");
+    sl.onclick=()=>{
+      if(wpPicked){ assign(i,wpPicked); return; }              // placing from the palette
+      if(wpMoveFrom===i){ wpMoveFrom=null; renderWeekPlanner(); setHint(""); return; }  // cancel
+      if(wpMoveFrom!==null){ moveDay(wpMoveFrom,i); return; }   // drop it here
+      if(filled){ wpMoveFrom=i; renderWeekPlanner(); setHint("Now tap the day to move it to"); return; }
+      setHint("Pick a workout above first");
+    };
+    if(filled) sl.ondragstart=ev=>{ ev.dataTransfer.setData("text/plain","move:"+i); };
     sl.ondragover=ev=>{ ev.preventDefault(); sl.classList.add("drop"); };
     sl.ondragleave=()=>sl.classList.remove("drop");
     sl.ondrop=ev=>{ ev.preventDefault(); sl.classList.remove("drop");
-      const k=ev.dataTransfer.getData("text/plain"); if(k) assign(i,k); };
+      const d=ev.dataTransfer.getData("text/plain"); if(!d) return;
+      if(d.startsWith("move:")) moveDay(+d.slice(5), i); else assign(i,d);
+    };
   });
   host.querySelectorAll(".x").forEach(b=>{
     b.onclick=ev=>{ ev.stopPropagation();
       const pl=loadWeekPlan(); delete pl[+b.dataset.i]; saveWeekPlan(pl);
+      wpMoveFrom=null; wpPicked=null;
       renderWeekPlanner(); renderTodayPlanCard(); };
   });
 }
