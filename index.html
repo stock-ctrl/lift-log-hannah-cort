@@ -789,6 +789,19 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .wkday .c.today.on{color:var(--on-accent);}
 .wkday .c.future{opacity:.4;}
 .wk-empty{font-size:13px;color:var(--muted);text-align:center;padding:18px 0;}
+
+/* Mid-workout: the home cards collapse to one line so the set table is at
+   the top of the screen, where it is needed while training. */
+.home-mini{
+  display:none;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:12px -18px 0;padding:11px 18px;
+  background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  font-size:12.5px;color:var(--muted);font-weight:650;
+}
+.home-mini b{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums;}
+.home-mini .sep{color:var(--line-2);}
+.home-mini .more{margin-left:auto;color:var(--accent);font-weight:750;cursor:pointer;
+  background:none;border:0;font-family:inherit;font-size:12.5px;padding:0;}
 </style>
 </head>
 <body>
@@ -815,6 +828,7 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     </div>
 
 
+    <div class="home-mini" id="homeMini"></div>
     <div class="hp" id="homePanel">
 
       <div class="hp-strip">
@@ -1206,6 +1220,7 @@ function allNames(){
 /* ======================= TODAY ======================= */
 function renderToday(){
   document.getElementById("todayDate").textContent = prettyDate(todayISO());
+  syncHomeMode();
   const list=document.getElementById("exerciseList"); list.innerHTML="";
   const has=draft.exercises.length>0;
   document.getElementById("todayEmpty").style.display=has?"none":"block";
@@ -2618,12 +2633,55 @@ function fmtDayLabel(iso){
   }catch(e){ return iso; }
 }
 
+/* While a workout is in progress the stats are in the way: they filled the
+   whole first screen and pushed the first set row 1.3 screens down. Collapse
+   them to a single line, and restore the full panel when nothing is running. */
+function workoutInProgress(){
+  return !!(draft && draft.exercises && draft.exercises.length);
+}
+
+function syncHomeMode(){
+  const panel=document.getElementById("homePanel");
+  const mini=document.getElementById("homeMini");
+  if(!panel || !mini) return;
+  const busy=workoutInProgress();
+  panel.style.display = busy ? "none" : "";
+  mini.style.display  = busy ? "flex" : "none";
+  if(!busy) return;
+
+  const ws=loadWorkouts();
+  const dayMap=workoutDaySet(ws);
+  const mon=mondayOf(new Date());
+  let done=0;
+  for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); if(dayMap[isoOf(d)]) done++; }
+
+  // consecutive prior weeks with at least one workout
+  let streak=0;
+  for(let wk=0; wk<52; wk++){
+    const m=new Date(mon); m.setDate(mon.getDate()-wk*7);
+    let hit=false;
+    for(let i=0;i<7;i++){ const d=new Date(m); d.setDate(m.getDate()+i); if(dayMap[isoOf(d)]){ hit=true; break; } }
+    if(hit) streak++;
+    else if(wk>0) break;
+  }
+
+  mini.innerHTML =
+    '<span><b>'+streak+'</b> wk streak</span><span class="sep">|</span>'+
+    '<span><b>'+done+'</b> of '+weekTarget+' this week</span>'+
+    '<button type="button" class="more" id="homeMiniMore">Show stats</button>';
+  document.getElementById("homeMiniMore").onclick=()=>{
+    panel.style.display="";
+    document.getElementById("homeMini").style.display="none";
+  };
+}
+
 function renderHome(){
   const ws = loadWorkouts();
   const dayMap = workoutDaySet(ws);
   renderThisWeek(ws, dayMap);
   renderConsistency(ws, dayMap);
   renderPBs(ws);
+  syncHomeMode();
 }
 
 
