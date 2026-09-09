@@ -737,6 +737,24 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .body-scale i{width:22px;height:9px;border-radius:2px;display:inline-block;}
 .msl-row .pct{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent);font-size:12.5px;margin-right:12px;}
 .msl-val{display:flex;align-items:baseline;}
+
+/* ===================== EXERCISE RECORDS ===================== */
+.rec-h{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);margin:16px 0 2px;}
+.rec-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;}
+.rec-row:last-child{border-bottom:0;}
+.rec-row .k{color:var(--ink-2);font-weight:600;}
+.rec-row .v{color:var(--accent);font-weight:750;font-variant-numeric:tabular-nums;}
+.rec-row .d{color:var(--faint);font-size:11px;font-weight:600;margin-top:2px;}
+.sr-head{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line-2);
+  font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);}
+.sr-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);
+  font-size:14px;font-variant-numeric:tabular-nums;}
+.sr-row:last-child{border-bottom:0;}
+.sr-row .reps{color:var(--ink);font-weight:700;}
+.sr-row .pb{color:var(--ink-2);font-weight:650;}
+.sr-more{font-size:11.5px;color:var(--faint);padding:8px 0 0;font-weight:600;}
 </style>
 </head>
 <body>
@@ -1645,6 +1663,58 @@ function renderMovers(){
 }
 
 /* ======================= PROGRESS: records ======================= */
+/* Per-exercise records, mirroring the Hevy detail screen:
+   heaviest weight, best e1RM, best single-set volume, best session volume,
+   plus the heaviest weight achieved at each rep count. */
+function exerciseRecords(name){
+  const key=(name||"").trim().toLowerCase();
+  let heaviest=null,best1rm=null,bestSetVol=null,bestSessVol=null;
+  const byReps={};
+  loadWorkouts().forEach(w=>{
+    let sessVol=0, found=false;
+    (w.exercises||[]).forEach(e=>{
+      if((e.name||"").trim().toLowerCase()!==key) return;
+      found=true;
+      (e.sets||[]).forEach(st=>{
+        const wt=num(st.weight), rp=num(st.reps);
+        if(!rp) return;
+        const vol=wt*rp, e1=epley(wt,rp);
+        sessVol+=vol;
+        if(!heaviest   || wt>heaviest.v)    heaviest={v:wt,date:w.date,reps:rp};
+        if(!best1rm    || e1>best1rm.v)     best1rm={v:e1,date:w.date};
+        if(!bestSetVol || vol>bestSetVol.v) bestSetVol={v:vol,date:w.date,weight:wt,reps:rp};
+        if(!byReps[rp] || wt>byReps[rp].weight) byReps[rp]={weight:wt,date:w.date};
+      });
+    });
+    if(found && (!bestSessVol || sessVol>bestSessVol.v)) bestSessVol={v:sessVol,date:w.date};
+  });
+  return {heaviest,best1rm,bestSetVol,bestSessVol,byReps};
+}
+
+function buildRecordBlocks(name,u){
+  const r=exerciseRecords(name);
+  const box=document.createElement("div");
+  const row=(k,v,d)=>'<div class="rec-row"><div><div class="k">'+k+'</div>'+
+      (d?'<div class="d">'+shortDate(d)+'</div>':'')+'</div><div class="v">'+v+'</div></div>';
+  let h='<div class="rec-h">Personal records</div>';
+  if(r.heaviest)   h+=row("Heaviest weight", r.heaviest.v+" "+u, r.heaviest.date);
+  if(r.best1rm)    h+=row("Best 1RM (est.)", r.best1rm.v+" "+u, r.best1rm.date);
+  if(r.bestSetVol) h+=row("Best set volume", r.bestSetVol.weight+" "+u+" \u00d7 "+r.bestSetVol.reps, r.bestSetVol.date);
+  if(r.bestSessVol)h+=row("Best session volume", fmtVol(r.bestSessVol.v)+" "+u, r.bestSessVol.date);
+
+  const reps=Object.keys(r.byReps).map(Number).sort((a,b)=>a-b);
+  if(reps.length){
+    h+='<div class="rec-h">Set records</div>';
+    h+='<div class="sr-head"><span>Reps</span><span>Personal best</span></div>';
+    reps.slice(0,12).forEach(rp=>{
+      h+='<div class="sr-row"><span class="reps">'+rp+'</span><span class="pb">'+r.byReps[rp].weight+" "+u+'</span></div>';
+    });
+    if(reps.length>12) h+='<div class="sr-more">+'+(reps.length-12)+' more rep counts</div>';
+  }
+  box.innerHTML=h;
+  return box;
+}
+
 function renderRecords(){
   renderMovers();
   const wrap=document.getElementById("recordsList");
@@ -1671,6 +1741,7 @@ function renderRecords(){
         const series=exerciseSeries(k);
         if(series.length>=2) chart.appendChild(buildChart(series));
         else { const note=document.createElement("div"); note.className="chart-note"; note.textContent="Log this lift on another day to watch the line climb."; chart.appendChild(note); }
+        chart.appendChild(buildRecordBlocks(k, r.unit));
         built=true;
       }
       chart.classList.toggle("open");
