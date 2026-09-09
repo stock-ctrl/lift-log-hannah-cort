@@ -802,6 +802,48 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .home-mini .sep{color:var(--line-2);}
 .home-mini .more{margin-left:auto;color:var(--accent);font-weight:750;cursor:pointer;
   background:none;border:0;font-family:inherit;font-size:12.5px;padding:0;}
+
+/* ===================== WEEK PLANNER (drag / tap to assign) ===================== */
+.wp-lead{font-size:13px;color:var(--muted);margin:2px 0 14px;line-height:1.5;}
+.wp-pal{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+.wp-chip{
+  border:1px solid var(--line-2);background:var(--card);color:var(--ink);
+  border-radius:999px;padding:9px 15px;font-size:13.5px;font-weight:700;cursor:grab;
+  font-family:inherit;touch-action:manipulation;
+}
+.wp-chip.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+.wp-chip small{color:var(--muted);font-weight:600;margin-left:6px;}
+.wp-chip.sel small{color:var(--on-accent);opacity:.75;}
+.wp-hint{font-size:12px;color:var(--accent);font-weight:700;margin:10px 0 2px;min-height:16px;}
+.wp-day{
+  display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);
+}
+.wp-day:last-child{border-bottom:0;}
+.wp-day .d{width:42px;flex:0 0 auto;font-size:11px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint);}
+.wp-day.today .d{color:var(--accent);}
+.wp-day .slot{
+  flex:1;min-height:42px;border:1px dashed var(--line-2);border-radius:var(--r-md);
+  display:flex;align-items:center;padding:0 13px;font-size:14px;color:var(--faint);
+  font-weight:600;cursor:pointer;
+}
+.wp-day .slot.filled{border-style:solid;border-color:var(--accent);background:var(--accent-wash);
+  color:var(--ink);font-weight:700;}
+.wp-day .slot.drop{border-color:var(--accent);background:var(--accent-wash);}
+.wp-day .x{width:30px;height:30px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line-2);
+  background:transparent;color:var(--muted);font-size:15px;font-weight:800;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;}
+.wp-day .x.hide{visibility:hidden;}
+.today-plan{
+  display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:13px 15px;
+  background:var(--accent-wash);border:1px solid var(--accent);border-radius:var(--r-md);
+}
+.today-plan .t{flex:1;font-size:14.5px;font-weight:700;color:var(--ink);}
+.today-plan .t small{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-top:2px;}
+.today-plan button{
+  flex:0 0 auto;border:0;border-radius:999px;background:var(--accent);color:var(--on-accent);
+  padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;
+}
 </style>
 </head>
 <body>
@@ -867,6 +909,7 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 
     </div>
 
+    <div class="today-plan" id="todayPlanCard" style="display:none;"></div>
     <div class="day-eyebrow" id="dayEyebrow">Workout</div>
     <input class="day-name" id="dayName" placeholder="Name this day — Push, Pull, Legs..." autocomplete="off" autocapitalize="words" spellcheck="false">
     <div class="routine-chips" id="routineChips"></div>
@@ -931,8 +974,8 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     <div id="planDays"></div>
     <div id="planEmpty" class="empty">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg></div>
-      <div class="lead">No plan loaded yet</div>
-      <div class="sub">Your coach loads your week here.</div>
+      <div class="lead">No plan yet</div>
+      <div class="sub">You don\u2019t need one. Log what you do on the Workout tab and it all still counts.<br><br>Name a workout when you save it and it comes back as a shortcut, so repeating a day is one tap.</div>
     </div>
   </section>
 
@@ -1221,6 +1264,7 @@ function allNames(){
 function renderToday(){
   document.getElementById("todayDate").textContent = prettyDate(todayISO());
   syncHomeMode();
+  renderTodayPlanCard();
   const list=document.getElementById("exerciseList"); list.innerHTML="";
   const has=draft.exercises.length>0;
   document.getElementById("todayEmpty").style.display=has?"none":"block";
@@ -2272,15 +2316,107 @@ function buildEditor(){
 }
 function planChevron(open){ return '<span class="pd-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+(open?"M6 15l6-6 6 6":"M9 6l6 6-6 6")+'"/></svg></span>'; }
 
+/* ===================== WEEK PLANNER =====================
+   Hannah has no coach and no AI connector, so her plan is built from what she
+   has already done: every named workout becomes a chip, and she assigns chips
+   to weekdays. Tap-to-assign is the primary interaction because HTML5 drag and
+   drop does not fire on iOS Safari; dragging is added on top for desktop. */
+const WEEKPLAN_KEY = "hannahc_weekplan_v1";
+const WP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+let wpPicked = null;
+
+const loadWeekPlan = () => { try{ return JSON.parse(localStorage.getItem(WEEKPLAN_KEY))||{}; }catch(e){ return {}; } };
+const saveWeekPlan = o => localStorage.setItem(WEEKPLAN_KEY, JSON.stringify(o));
+const wpTodayIdx = () => (new Date().getDay()+6)%7;
+
+function renderWeekPlanner(){
+  const host=document.getElementById("planEmpty"); if(!host) return;
+  const rts=loadRoutines();
+  const keys=Object.keys(rts).sort((a,b)=>rts[a].name.localeCompare(rts[b].name));
+  const plan=loadWeekPlan();
+
+  if(!keys.length){
+    host.innerHTML='<div class="wp-lead">Your week gets built from workouts you have already done.<br><br>'+
+      'On the Workout tab, give a session a name before you save it \u2014 "Legs", "Upper body", whatever you call it. '+
+      'It will show up here and you can drop it onto the days you train.</div>';
+    return;
+  }
+
+  let h='<div class="wp-lead">Tap a workout, then tap a day to put it there. Tap it again to change it.</div>';
+  h+='<div class="wp-pal" id="wpPal">';
+  keys.forEach(k=>{
+    h+='<button type="button" class="wp-chip" draggable="true" data-k="'+escapeHtml(k)+'">'+
+       escapeHtml(rts[k].name)+'<small>'+rts[k].exercises.length+'</small></button>';
+  });
+  h+='</div><div class="wp-hint" id="wpHint"></div><div id="wpDays">';
+  WP_DAYS.forEach((d,i)=>{
+    const k=plan[i], rt=k?rts[k]:null;
+    h+='<div class="wp-day'+(i===wpTodayIdx()?" today":"")+'" data-i="'+i+'">'+
+       '<div class="d">'+d+'</div>'+
+       '<div class="slot'+(rt?" filled":"")+'" data-i="'+i+'">'+(rt?escapeHtml(rt.name):"Rest")+'</div>'+
+       '<button type="button" class="x'+(rt?"":" hide")+'" data-i="'+i+'" aria-label="Clear">\u00d7</button>'+
+       '</div>';
+  });
+  h+='</div>';
+  host.innerHTML=h;
+
+  const hint=document.getElementById("wpHint");
+  const setHint=t=>{ if(hint) hint.textContent=t||""; };
+
+  host.querySelectorAll(".wp-chip").forEach(c=>{
+    c.onclick=()=>{
+      wpPicked = (wpPicked===c.dataset.k) ? null : c.dataset.k;
+      host.querySelectorAll(".wp-chip").forEach(x=>x.classList.toggle("sel",x.dataset.k===wpPicked));
+      setHint(wpPicked ? "Now tap a day" : "");
+    };
+    c.ondragstart=ev=>{ ev.dataTransfer.setData("text/plain", c.dataset.k); };
+  });
+
+  const assign=(i,k)=>{
+    const pl=loadWeekPlan(); pl[i]=k; saveWeekPlan(pl);
+    wpPicked=null; renderWeekPlanner(); renderTodayPlanCard();
+    toast("Set "+WP_DAYS[i]+" to "+(loadRoutines()[k]||{}).name);
+  };
+
+  host.querySelectorAll(".slot").forEach(sl=>{
+    const i=+sl.dataset.i;
+    sl.onclick=()=>{ if(wpPicked) assign(i,wpPicked); else setHint("Pick a workout above first"); };
+    sl.ondragover=ev=>{ ev.preventDefault(); sl.classList.add("drop"); };
+    sl.ondragleave=()=>sl.classList.remove("drop");
+    sl.ondrop=ev=>{ ev.preventDefault(); sl.classList.remove("drop");
+      const k=ev.dataTransfer.getData("text/plain"); if(k) assign(i,k); };
+  });
+  host.querySelectorAll(".x").forEach(b=>{
+    b.onclick=ev=>{ ev.stopPropagation();
+      const pl=loadWeekPlan(); delete pl[+b.dataset.i]; saveWeekPlan(pl);
+      renderWeekPlanner(); renderTodayPlanCard(); };
+  });
+}
+
+/* Today tab: surface whatever she put on this weekday. */
+function renderTodayPlanCard(){
+  const host=document.getElementById("todayPlanCard"); if(!host) return;
+  const k=loadWeekPlan()[wpTodayIdx()];
+  const rt=k?loadRoutines()[k]:null;
+  if(!rt || draft.exercises.length){ host.style.display="none"; host.innerHTML=""; return; }
+  host.style.display="flex";
+  host.innerHTML='<div class="t">Today: '+escapeHtml(rt.name)+
+    '<small>'+rt.exercises.length+(rt.exercises.length===1?" exercise":" exercises")+' \u00b7 from your plan</small></div>'+
+    '<button type="button" id="todayPlanLoad">Load it</button>';
+  document.getElementById("todayPlanLoad").onclick=()=>{ applyRoutine(rt); };
+}
+
 function renderPlan(){
   const host=document.getElementById("planDays"); if(!host) return;
   const lbl=document.getElementById("planWeekLabel"), sub=document.getElementById("planWeekSub"), empty=document.getElementById("planEmpty");
   const prevB=document.getElementById("planPrev"), nextB=document.getElementById("planNext");
   const ps=planState;
   if(!ps || !Array.isArray(ps.days) || !ps.days.length){
-    empty.style.display="block"; host.innerHTML="";
-    lbl.textContent = ps ? (ps.week_label||"Plan") : "No plan yet"; sub.textContent="";
-    prevB.disabled=true; nextB.disabled=true; return;
+    empty.style.display="block"; empty.classList.remove("empty"); host.innerHTML="";
+    lbl.textContent="Your week"; sub.textContent="";
+    prevB.disabled=true; nextB.disabled=true;
+    renderWeekPlanner();
+    return;
   }
   empty.style.display="none";
   const viewed=(planViewWeek!=null?planViewWeek:ps.week);
