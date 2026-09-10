@@ -2005,7 +2005,8 @@ async function syncPush(){
   if(!syncOn) return;
   try{
     const body={token:syncToken(),action:"push",athlete:ATHLETE_KEY,
-      data:{workouts:loadWorkouts(),bodyweight:loadBW(),unit,restTarget},summary:computeSummary()};
+      data:{workouts:loadWorkouts(),bodyweight:loadBW(),unit,restTarget,
+            routines:loadRoutines(),weekPlan:loadWeekPlan()},summary:computeSummary()};
     const r=await fetch(SYNC_URL,{method:"POST",headers:SYNC_HEADERS,body:JSON.stringify(body)});
     const j=await r.json();
     if(j && j.ok){ localStorage.setItem(SYNCED_KEY,j.updated_at); renderSync(); }
@@ -2024,8 +2025,14 @@ async function syncPull(){
         if(Array.isArray(d.workouts)) saveWorkouts(d.workouts);
         if(Array.isArray(d.bodyweight)) saveBW(d.bodyweight);
         if(d.unit){ unit=d.unit; localStorage.setItem(UNIT_KEY,unit); }
+        // These are what a reinstall would otherwise lose: her named workouts
+        // (the Plan chips) and which day each one sits on.
+        if(d.routines && typeof d.routines==="object") saveRoutines(d.routines);
+        if(d.weekPlan && typeof d.weekPlan==="object") saveWeekPlan(d.weekPlan);
+        if(num(d.restTarget)){ restTarget=num(d.restTarget); localStorage.setItem(REST_KEY,String(restTarget)); }
         localStorage.setItem(SYNCED_KEY,remoteAt);
         renderHistory(); renderRecords(); updateStats(); renderToday();
+        renderHome(); renderStats(); renderPlan(); renderRestSeg();
       }
     }
     renderSync();
@@ -2307,8 +2314,10 @@ const WP_DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 let wpPicked = null;     // routine key chosen from the palette (copy)
 let wpMoveFrom = null;   // day index picked up for moving (move/swap)
 
-const loadWeekPlan = () => { try{ return JSON.parse(localStorage.getItem(WEEKPLAN_KEY))||{}; }catch(e){ return {}; } };
-const saveWeekPlan = o => localStorage.setItem(WEEKPLAN_KEY, JSON.stringify(o));
+/* Function declarations, not const arrows: syncPush/syncPull sit earlier in the
+   file and would hit the temporal dead zone if these were consts. */
+function loadWeekPlan(){ try{ return JSON.parse(localStorage.getItem(WEEKPLAN_KEY))||{}; }catch(e){ return {}; } }
+function saveWeekPlan(o){ localStorage.setItem(WEEKPLAN_KEY, JSON.stringify(o)); }
 const wpTodayIdx = () => (new Date().getDay()+6)%7;
 
 function renderWeekPlanner(){
