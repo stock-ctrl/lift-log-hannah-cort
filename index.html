@@ -858,6 +858,31 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .welcome .w-s{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin-top:7px;}
 
 .stat-card .n{font-size:10.5px;color:var(--faint);font-weight:600;margin-top:3px;}
+
+/* ===================== TRAINING CALENDAR ===================== */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.cal-nav button{width:32px;height:32px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line-2);
+  background:transparent;color:var(--ink-2);font-size:15px;font-weight:800;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;}
+.cal-nav button:disabled{opacity:.3;cursor:default;}
+.cal-nav .m{flex:1;text-align:center;font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
+.cal-head,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;}
+.cal-head{margin-bottom:5px;}
+.cal-head div{text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--faint);}
+.cal-c{aspect-ratio:1;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;
+  border:1px solid transparent;background:var(--paper-2);}
+.cal-c.blank{background:transparent;}
+.cal-c.cal-off{color:var(--faint);}
+.cal-c.on{background:var(--accent);color:var(--on-accent);font-weight:800;}
+.cal-c.today{border-color:var(--accent);color:var(--accent);}
+.cal-c.today.on{color:var(--on-accent);}
+.cal-c.future{opacity:.35;}
+.cal-foot{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--muted);font-weight:650;}
+.cal-foot b{color:var(--ink);font-weight:800;}
+.cal-bar{height:4px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:9px;}
+.cal-bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s var(--ease);}
 </style>
 </head>
 <body>
@@ -894,29 +919,16 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
       <div class="hp-strip">
         <div class="st"><div class="v" id="cgStreak">0</div><div class="k">Week streak</div></div>
         <div class="st"><div class="v" id="cgAvg">0</div><div class="k">Avg / week</div></div>
-        <div class="st"><div class="v" id="cgTotal">0</div><div class="k">12-wk total</div></div>
+        <div class="st"><div class="v" id="cgTotal">0</div><div class="k">Last 12 wks</div></div>
       </div>
 
       <div class="hp-sec">
-        <div class="hp-sech"><div class="hp-title">This Week</div><div class="hp-meta" id="wkMeta"></div></div>
+        <div class="hp-sech"><div class="hp-title">Training Calendar</div><div class="hp-meta" id="calMeta"></div></div>
         <div class="hp-body">
-          <div class="wk" id="wkStrip"></div>
-          <div class="hp-bar"><i id="wkBar" style="width:0%"></i></div>
-        </div>
-      </div>
-
-      <div class="hp-sec">
-        <div class="hp-sech"><div class="hp-title">Consistency</div><div class="hp-meta" id="cgMeta"></div></div>
-        <div class="hp-body">
-          <div class="cg" id="cgGrid"></div>
-          <div class="cg-legend">
-            <span>Less</span>
-            <i style="background:var(--paper-2)"></i>
-            <i style="background:var(--accent-wash)"></i>
-            <i style="background:var(--accent-2)"></i>
-            <i style="background:var(--accent)"></i>
-            <span>More</span>
-          </div>
+          <div class="cal-nav" id="calNav"></div>
+          <div class="cal-head" id="calHead"></div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-foot" id="calFoot"></div>
         </div>
       </div>
 
@@ -2740,67 +2752,72 @@ function workoutDaySet(ws){
   return m;
 }
 
-function renderThisWeek(ws, dayMap){
-  const strip = document.getElementById("wkStrip"); if(!strip) return;
-  const mon = mondayOf(new Date()), todayISO = isoOf(new Date());
-  const L = ["M","T","W","T","F","S","S"];
-  strip.innerHTML = "";
-  let done = 0;
-  for(let i=0;i<7;i++){
-    const d = new Date(mon); d.setDate(mon.getDate()+i);
-    const iso = isoOf(d), hit = !!dayMap[iso], isToday = iso===todayISO, future = iso>todayISO;
-    if(hit) done++;
-    const cell = document.createElement("div"); cell.className="wk-d";
-    const lab  = document.createElement("div"); lab.className="wk-l"; lab.textContent=L[i];
-    const box  = document.createElement("div");
-    box.className = "wk-c" + (hit?" done":"") + (isToday?" today":"") + (future?" wk-off":"");
-    box.textContent = hit ? "\u2713" : d.getDate();
-    cell.appendChild(lab); cell.appendChild(box); strip.appendChild(cell);
+let calOffset = 0;   // 0 = this month, -1 = last month
+
+function renderCalendar(ws, dayMap){
+  const nav=document.getElementById("calNav"); if(!nav) return;
+  const now=new Date();
+  const first=new Date(now.getFullYear(), now.getMonth()+calOffset, 1);
+  const year=first.getFullYear(), month=first.getMonth();
+  const daysIn=new Date(year, month+1, 0).getDate();
+  const lead=(first.getDay()+6)%7;                       // Monday-first offset
+  const todayISO=isoOf(now);
+
+  nav.innerHTML='<button type="button" id="calPrev" aria-label="Previous month">\u2039</button>'+
+    '<div class="m">'+first.toLocaleDateString(undefined,{month:"long",year:"numeric"})+'</div>'+
+    '<button type="button" id="calNext" aria-label="Next month"'+(calOffset>=0?" disabled":"")+'>\u203a</button>';
+  document.getElementById("calPrev").onclick=()=>{ calOffset--; renderHome(); };
+  document.getElementById("calNext").onclick=()=>{ if(calOffset<0){ calOffset++; renderHome(); } };
+
+  const head=document.getElementById("calHead");
+  if(head) head.innerHTML=["M","T","W","T","F","S","S"].map(d=>"<div>"+d+"</div>").join("");
+
+  let h="", trained=0;
+  for(let i=0;i<lead;i++) h+='<div class="cal-c blank"></div>';
+  for(let d=1; d<=daysIn; d++){
+    const iso=isoOf(new Date(year, month, d));
+    const on=!!dayMap[iso];
+    if(on) trained++;
+    const cls="cal-c"+(on?" on":" cal-off")+(iso===todayISO?" today":"")+(iso>todayISO?" future":"");
+    h+='<div class="'+cls+'">'+d+'</div>';
   }
-  document.getElementById("wkMeta").innerHTML = "<b>"+done+"</b> of "+weekTarget+" workouts";
-  document.getElementById("wkBar").style.width = Math.min(100, (done/weekTarget)*100) + "%";
+  document.getElementById("calGrid").innerHTML=h;
+
+  const monthName=first.toLocaleDateString(undefined,{month:"long"});
+  const meta=document.getElementById("calMeta");
+  if(meta) meta.innerHTML="<b>"+trained+"</b> "+(trained===1?"workout":"workouts");
+
+  // This week's progress only makes sense while looking at the current month.
+  const foot=document.getElementById("calFoot");
+  if(!foot) return;
+  if(calOffset!==0){
+    foot.innerHTML=trained+(trained===1?" workout in ":" workouts in ")+monthName+".";
+    return;
+  }
+  const mon=mondayOf(now);
+  let done=0;
+  for(let i=0;i<7;i++){ const dt=new Date(mon); dt.setDate(mon.getDate()+i); if(dayMap[isoOf(dt)]) done++; }
+  foot.innerHTML='<b>'+done+'</b> of '+weekTarget+' this week'+
+    '<div class="cal-bar"><i style="width:'+Math.min(100,(done/weekTarget)*100)+'%"></i></div>';
 }
 
-function renderConsistency(ws, dayMap){
-  const grid = document.getElementById("cgGrid"); if(!grid) return;
-  const WEEKS = 12;
-  const thisMon = mondayOf(new Date());
-  const start = new Date(thisMon); start.setDate(thisMon.getDate() - (WEEKS-1)*7);
-  const todayISO = isoOf(new Date());
-  grid.innerHTML = "";
-  let total = 0;
-  const perWeek = [];
-  for(let w=0; w<WEEKS; w++){
-    let wk = 0;
-    for(let d=0; d<7; d++){
-      const dt = new Date(start); dt.setDate(start.getDate() + w*7 + d);
-      const iso = isoOf(dt), sets = dayMap[iso]||0;
-      const c = document.createElement("div");
-      let cls = "cg-c";
-      if(iso > todayISO) cls += " future";
-      else if(sets >= 15) cls += " l3";
-      else if(sets >= 8)  cls += " l2";
-      else if(sets > 0)   cls += " l1";
-      c.className = cls;
-      c.title = iso + (sets ? " \u00b7 " + sets + " sets" : " \u00b7 rest");
-      grid.appendChild(c);
-      if(sets){ total++; wk++; }
-    }
-    perWeek.push(wk);
+/* Week streak and weekly average still read over the trailing 12 weeks - the
+   calendar shows one month, but a streak measured in one month is meaningless. */
+function renderStreakStrip(ws, dayMap){
+  const mon=mondayOf(new Date());
+  let streak=0, weeksWithData=0, total=0;
+  for(let wk=0; wk<52; wk++){
+    const m=new Date(mon); m.setDate(mon.getDate()-wk*7);
+    let hit=0;
+    for(let i=0;i<7;i++){ const d=new Date(m); d.setDate(m.getDate()+i); if(dayMap[isoOf(d)]) hit++; }
+    if(wk<12){ total+=hit; if(hit) weeksWithData++; }
+    if(hit) streak++;
+    else if(wk>0) break;
   }
-  // week streak: consecutive weeks (ending with the most recent COMPLETED week or this one) with >=1 workout
-  let streak = 0;
-  for(let i=perWeek.length-1; i>=0; i--){
-    if(perWeek[i] > 0) streak++;
-    else if(i === perWeek.length-1) continue;   // current week may just not have started
-    else break;
-  }
-  const weeksElapsed = perWeek.filter((v,i)=> i<perWeek.length-1 || v>0).length || 1;
-  const avg = total / Math.max(1, weeksElapsed);
-  document.getElementById("cgStreak").innerHTML = streak + '<small>wk</small>';
-  document.getElementById("cgAvg").textContent  = (Math.round(avg*10)/10).toString();
-  document.getElementById("cgTotal").textContent = total;
-  document.getElementById("cgMeta").textContent = "Last 12 weeks";
+  const el=id=>document.getElementById(id);
+  if(el("cgStreak")) el("cgStreak").innerHTML=streak+'<small>wk</small>';
+  if(el("cgAvg"))    el("cgAvg").textContent=(Math.round((total/Math.max(1,weeksWithData||1))*10)/10).toString();
+  if(el("cgTotal"))  el("cgTotal").textContent=total;
 }
 
 function renderPBs(ws){
@@ -2902,8 +2919,8 @@ function syncHomeMode(){
 function renderHome(){
   const ws = loadWorkouts();
   const dayMap = workoutDaySet(ws);
-  renderThisWeek(ws, dayMap);
-  renderConsistency(ws, dayMap);
+  renderStreakStrip(ws, dayMap);
+  renderCalendar(ws, dayMap);
   renderPBs(ws);
   syncHomeMode();
 }
