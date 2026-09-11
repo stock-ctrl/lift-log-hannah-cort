@@ -2639,6 +2639,10 @@ function hideWhatsNew(){ const b=document.getElementById("whatsNew"); if(b) b.cl
   if(g) g.onclick=()=>{ switchTab("records"); hideWhatsNew(); };
   if(x) x.onclick=hideWhatsNew; })();
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ checkForUpdate();
+  // Pull on resume. Without this a second device (her iPad) could sit open for
+  // days, then push its stale copy over newer work done on her phone. The
+  // in-progress draft is stored separately, so this cannot disturb a live set.
+  if(syncOn) syncPull();
   if(document.getElementById("rest").classList.contains("show")) tickRest(); tickClock(); } });
 
 /* keep the focused text field visible above the on-screen keyboard */
@@ -3194,7 +3198,11 @@ function renderMuscleSets(groupCounts, muscleCounts){
 }
 
 renderToday(); renderHistory(); renderRecords(); updateStats(); renderHome(); renderStats();
-syncPull();
+/* Pull first, then push. The push matters even with nothing to send: if this
+   device is not the one registered to her, the server answers "unclaimed" and
+   that is what raises the "not backing up" banner. Without it she could open
+   the app on a second device, see an empty history and no explanation. */
+syncPull().then(syncPush);
 planPull().then(maybeAutoLoadToday);
 setTimeout(checkForUpdate, 1500);
 </script>
