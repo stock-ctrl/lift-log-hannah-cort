@@ -2018,6 +2018,14 @@ let syncTimer=null;
 async function syncPush(){
   if(!syncOn) return;
   try{
+    // If this device has nothing but the server does, we are about to replace
+    // her history with an empty array. Pull instead and let the next change push.
+    if(!loadWorkouts().length){
+      const chk=await fetch(SYNC_URL,{method:"POST",headers:SYNC_HEADERS,
+        body:JSON.stringify({token:syncToken(),action:"pull"})}).then(r=>r.json()).catch(()=>null);
+      const remote=chk && chk.ok && chk.row && chk.row.data && chk.row.data.workouts;
+      if(Array.isArray(remote) && remote.length){ await syncPull(); return; }
+    }
     const body={token:syncToken(),action:"push",athlete:ATHLETE_KEY,
       data:{workouts:loadWorkouts(),bodyweight:loadBW(),unit,restTarget,
             routines:loadRoutines(),weekPlan:loadWeekPlan()},summary:computeSummary()};
@@ -2597,7 +2605,7 @@ document.getElementById("restMinus").onclick=()=>adjustRest(-15);
 document.getElementById("restPlus").onclick=()=>adjustRest(15);
 document.getElementById("syncSwitch").onclick=()=>{
   syncOn=!syncOn; localStorage.setItem(SYNCON_KEY,syncOn?"1":"0"); renderSync();
-  if(syncOn){ syncToken(); syncPull(); syncPush(); }
+  if(syncOn){ syncToken(); syncPull().then(syncPush); }   // pull BEFORE push, never racing
   toast(syncOn?"Cloud sync on":"Cloud sync off");
 };
 document.getElementById("copyCode").onclick=()=>{ const v=syncToken();
