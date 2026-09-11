@@ -2403,7 +2403,7 @@ function renderWeekPlanner(){
 
   const assign=(i,k)=>{
     const pl=loadWeekPlan(); pl[i]=k; saveWeekPlan(pl);
-    wpPicked=null; renderWeekPlanner(); renderTodayPlanCard();
+    wpPicked=null; renderWeekPlanner(); renderTodayPlanCard(); queuePush();
     toast("Set "+WP_DAYS[i]+" to "+(loadRoutines()[k]||{}).name);
   };
 
@@ -2417,7 +2417,7 @@ function renderWeekPlanner(){
     pl[to]=a;
     saveWeekPlan(pl);
     wpMoveFrom=null; wpPicked=null;
-    renderWeekPlanner(); renderTodayPlanCard();
+    renderWeekPlanner(); renderTodayPlanCard(); queuePush();
     toast(b===undefined ? ("Moved to "+WP_DAYS[to]) : ("Swapped "+WP_DAYS[from]+" and "+WP_DAYS[to]));
   };
 
@@ -2443,7 +2443,7 @@ function renderWeekPlanner(){
     b.onclick=ev=>{ ev.stopPropagation();
       const pl=loadWeekPlan(); delete pl[+b.dataset.i]; saveWeekPlan(pl);
       wpMoveFrom=null; wpPicked=null;
-      renderWeekPlanner(); renderTodayPlanCard(); };
+      renderWeekPlanner(); renderTodayPlanCard(); queuePush(); };
   });
 }
 
