@@ -1051,7 +1051,7 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
     </div>
 
     <h2 class="h-sec">Set count per muscle group</h2>
-    <p class="note-txt" id="wkNote" style="margin-top:0;">A set counts toward every muscle it works, so these add up to more than your total set count. Secondary muscles count as half a set.</p>
+    <p class="note-txt" id="wkNote" style="margin-top:0;">Counted by the main muscle each exercise trains, so these add up to your total sets. The body map above also shades the muscles that assist — pressing works triceps and shoulders even when chest is the target.</p>
     <div id="muscleSets"></div>
 
     <h2 class="h-sec">On the up</h2>
@@ -2967,9 +2967,15 @@ let statPeriod = 30;
    Counting those makes the Duration card read 12min across 19 workouts. */
 const MIN_TRACKED_SEC = 300;
 
+/* Two different questions, two different numbers:
+     muscle  = PRIMARY movers only -> "what did I train", and the percentages.
+               Totals to her real set count, so 3 chest sets out of 12 reads
+               as 25%, not diluted down by assistance credit.
+     worked  = primary + secondary -> "what got worked", which shades the body
+               map, so pressing still lights up triceps and delts. */
 function statsBetween(ws, fromISO, toISO){
-  const out={workouts:0,sets:0,volume:0,seconds:0,timed:0,muscle:{},group:{}};
-  Object.keys(MUSCLE_GROUP).forEach(m=>out.muscle[m]=0);
+  const out={workouts:0,sets:0,volume:0,seconds:0,timed:0,muscle:{},worked:{},group:{}};
+  Object.keys(MUSCLE_GROUP).forEach(m=>{ out.muscle[m]=0; out.worked[m]=0; });
   MUSCLE_ORDER.forEach(g=>out.group[g]=0);
   ws.forEach(w=>{
     if(!w.date || w.date<fromISO || w.date>toISO) return;
@@ -2981,8 +2987,8 @@ function statsBetween(ws, fromISO, toISO){
       const n=(e.sets||[]).length;
       (e.sets||[]).forEach(st=>{ out.sets++; out.volume+=num(st.weight)*num(st.reps); });
       if(!t || !n) return;
-      t.primary.forEach(m=>{ if(m in out.muscle) out.muscle[m]+=n; });
-      t.secondary.forEach(m=>{ if(m in out.muscle) out.muscle[m]+=n*0.5; });
+      t.primary.forEach(m=>{ if(m in out.muscle){ out.muscle[m]+=n; out.worked[m]+=n; } });
+      t.secondary.forEach(m=>{ if(m in out.worked) out.worked[m]+=n*0.5; });
     });
   });
   Object.entries(out.muscle).forEach(([m,v])=>{ out.group[MUSCLE_GROUP[m]] += v; });
@@ -3062,7 +3068,7 @@ function renderWeekView(){
     return;
   }
   if(note) note.style.display="";
-  renderBodyMap(stats.muscle);
+  renderBodyMap(stats.worked);
   renderMuscleSets(stats.group, stats.muscle);
 }
 
