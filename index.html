@@ -2922,12 +2922,12 @@ const EX_RULES = [
   [/leg press/i,                                                ["quads","glutes"], ["hamstrings"]],
   [/squat|wall sit/i,                                           ["quads","glutes"], ["hamstrings","adductors","abs"]],
   [/lunge|step-?up/i,                                           ["quads","glutes"], ["hamstrings"]],
-  [/upright row/i,                                              ["traps"], ["front_delts"]],
+  [/upright row/i,                                              ["traps","side_delts"], []],
   [/shrug/i,                                                    ["traps"], []],
   [/face pull|rear delt|pull-?apart|y-?raise/i,                 ["rear_delts"], ["traps","upper_back"]],
   [/row|pulldown|pull-?up|chin-?up|pullover|straight-?arm/i,     ["upper_back"], ["biceps","rear_delts","forearms"]],
-  [/lateral raise/i,                                            ["front_delts"], ["traps"]],
-  [/overhead press|shoulder press|arnold|z-?press|military/i,   ["front_delts"], ["triceps","traps"]],
+  [/lateral raise|side raise|lat raise/i,                        ["side_delts"], ["traps"]],
+  [/overhead press|shoulder press|arnold|z-?press|military/i,   ["front_delts"], ["side_delts","triceps","traps"]],
   [/bench|chest|fly|flye|crossover|guillotine|press/i,          ["chest"], ["front_delts","triceps"]],
   [/plank|crunch|sit-?up|ab wheel|leg raise|russian twist|oblique|woodchop/i, ["abs"], ["obliques"]],
   [/wrist|farmer/i,                                             ["forearms"], []],
@@ -2942,6 +2942,10 @@ function targetsFor(name){
 const MUSCLE_POLYS = {
   chest:["chest"], abs:["abs"], obliques:["obliques"],
   front_delts:["front_deltoids"], rear_delts:["back_deltoids"],
+  // The model has no separate medial-deltoid region, so side delts shade the
+  // same shoulder cap as the front. Tracked separately so the breakdown can
+  // say which head was trained - lateral raises are NOT front-delt work.
+  side_delts:["front_deltoids"],
   biceps:["biceps"], triceps:["triceps"], forearms:["forearm"],
   traps:["trapezius"], upper_back:["upper_back"], lower_back:["lower_back"],
   quads:["quadriceps"], hamstrings:["hamstring"], glutes:["gluteal"],
@@ -2949,11 +2953,15 @@ const MUSCLE_POLYS = {
   adductors:["adductor"], abductors:["abductors"],
 };
 const POLY_MUSCLE = {};
-Object.entries(MUSCLE_POLYS).forEach(([m,ps])=>ps.forEach(p=>POLY_MUSCLE[p]=m));
+Object.entries(MUSCLE_POLYS).forEach(([m,ps])=>ps.forEach(p=>{ if(!POLY_MUSCLE[p]) POLY_MUSCLE[p]=m; }));
+// A polygon shared by several muscles (the shoulder cap) shades from whichever
+// of them was worked hardest, so side-delt work still lights the shoulder.
+const POLY_SHARED = {};
+Object.entries(MUSCLE_POLYS).forEach(([m,ps])=>ps.forEach(p=>{ (POLY_SHARED[p]=POLY_SHARED[p]||[]).push(m); }));
 
 const MUSCLE_ORDER = ["Chest","Core","Shoulders","Arms","Legs","Back"];
 const GROUP_MUSCLES = {
-  Chest:["chest"], Core:["abs","obliques"], Shoulders:["front_delts","rear_delts"],
+  Chest:["chest"], Core:["abs","obliques"], Shoulders:["front_delts","side_delts","rear_delts"],
   Arms:["biceps","triceps","forearms"], Back:["traps","upper_back","lower_back"],
   Legs:["quads","hamstrings","glutes","calves","adductors","abductors"],
 };
@@ -3171,9 +3179,10 @@ function renderBodyMap(muscleCounts){
   const host=document.getElementById("bodyMap"); if(!host) return;
   const max=Math.max(0,...Object.values(muscleCounts));
   const intensityOf = slug => {
-    const m = POLY_MUSCLE[slug];
-    if(!m) return null;                     // head / neck / knees
-    return max ? (muscleCounts[m]||0)/max : 0;
+    const ms = POLY_SHARED[slug];
+    if(!ms || !ms.length) return null;      // head / neck / knees
+    const v = Math.max(...ms.map(m=>muscleCounts[m]||0));
+    return max ? v/max : 0;
   };
   host.innerHTML =
     '<div class="body-fig">'+bodySvg(BODY_POLY.front,intensityOf)+'<div class="body-cap">Front</div></div>'+
