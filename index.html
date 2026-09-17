@@ -2955,7 +2955,13 @@ const MUSCLE_POLYS = {
   traps:["trapezius"], upper_back:["upper_back"], lower_back:["lower_back"],
   quads:["quadriceps"], hamstrings:["hamstring"], glutes:["gluteal"],
   calves:["calves","left_soleus","right_soleus"],
-  adductors:["adductor"], abductors:["abductors"],
+  // The artwork names the abductor region "abductor" on the back view and
+  // "abductors" on the front - both are the SAME muscle, and there is no
+  // adductor (inner thigh) region at all. Mapping a non-existent "adductor"
+  // polygon meant abductor work only half-rendered and the back-view region
+  // stayed permanently grey.
+  abductors:["abductor","abductors"],
+  adductors:[],   // no region in this model; still counted in the Legs total
 };
 const POLY_MUSCLE = {};
 Object.entries(MUSCLE_POLYS).forEach(([m,ps])=>ps.forEach(p=>{ if(!POLY_MUSCLE[p]) POLY_MUSCLE[p]=m; }));
