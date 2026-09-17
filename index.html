@@ -2908,7 +2908,12 @@ const EX_RULES = [
   [/chest dip|weighted .*dip/i,                                 ["chest"], ["triceps"]],
   [/(leg|hamstring|nordic|lying)\s*(hamstring)?\s*curl/i,      ["hamstrings"], []],
   [/seated hamstring/i,                                         ["hamstrings"], []],
-  [/bicep|curl|zottman|spider|bayesian|concentration/i,         ["biceps"], ["forearms"]],
+  // Per Athlean-X: reverse curls are a brachioradialis/forearm builder, not a
+  // biceps exercise. Zottman is half supinated, half pronated, so it is both.
+  // These must sit above the general curl rule.
+  [/reverse[- ]?(grip )?curl|pronated curl/i,                   ["forearms"], ["biceps"]],
+  [/zottman/i,                                                  ["biceps","forearms"], []],
+  [/bicep|curl|spider|bayesian|concentration/i,                 ["biceps"], ["forearms"]],
   [/calf|tibialis|soleus/i,                                     ["calves"], []],
   [/abduct/i,                                                   ["abductors"], ["glutes"]],
   [/adduct/i,                                                   ["adductors"], []],
