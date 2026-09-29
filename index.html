@@ -890,9 +890,120 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .sync-warn .s{font-size:12.5px;color:var(--ink-2);margin-top:4px;line-height:1.5;}
 .sync-warn button{margin-top:10px;border:0;border-radius:999px;background:var(--accent);
   color:var(--on-accent);padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;}
+/* ===== intro splash: Ronnie + banana dumbbell (Grok clip, trimmed + 1.35x): curls it, peels it, bites
+   it. At the chomp (--hit) flash + shake + zoom punch, TELL THE REAL RONNIE / YEAH BUDDY! slam in.
+   The real Ronnie = Cameron; LIGHTWEIGHT BANANA! calls back to her app's intro.
+   Autoplay refused (iOS Low Power Mode) -> the two stills snap instead (.stills).
+   Pure-CSS fade, so it clears itself even if the script never runs. ===== */
+.intro-ov{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  --itw:min(100vw,52vh); --hit:2.48s;
+  background:#130e0b;overflow:hidden;   /* warm near-black = the clip's own ceiling/floor tone */
+ cursor:pointer;
+  animation:introOut .45s var(--ease) 7s forwards;}                                 /* safety net */
+.intro-ov.stills{--hit:1.2s;}
+.intro-ov.go{animation:introOut2 .45s var(--ease) calc(var(--hit) + 1.95s) forwards;}  /* restarts the clock */
+.intro-ov.skip{animation:introOut .25s var(--ease) forwards;}
+.rc-stage{position:absolute;inset:0;}
+.rc-shake{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;animation:rcShake .38s linear var(--hit), rcShake2 .3s linear calc(var(--hit) + .52s);}
+/* whole video width always shows (arms never cropped); the spare height above and
+   below fades into the overlay background */
+.rc-zoom{position:relative;width:min(100vw,calc(100vh * 720 / 1264));aspect-ratio:720/1264;
+  -webkit-mask:linear-gradient(#0000,#000 7%,#000 90%,#0000);
+          mask:linear-gradient(#0000,#000 7%,#000 90%,#0000);
+  filter:brightness(.12);
+  animation:rcRise .45s ease-out forwards, rcPunch .45s cubic-bezier(.2,.9,.3,1) var(--hit);}
+.rc-img,.rc-vid{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;}
+/* darken the bottom so the words read over his legs */
+.rc-shade{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(0,0,0,.35),transparent 16%,transparent 52%,rgba(0,0,0,.72) 76%,rgba(0,0,0,.9));}
+.rc-img{visibility:hidden;}
+.stills .rc-vid{visibility:hidden;}
+.stills .rc-img{visibility:visible;}
+.stills .rc-zoom{transform:scale(1.06);
+  animation:rcRiseS .8s cubic-bezier(.3,.5,.2,1) forwards, rcBreath .42s ease-in-out .8s, rcPunch .45s cubic-bezier(.2,.9,.3,1) var(--hit);}
+.stills .rc-flex{opacity:0;animation:rcSnap .05s linear var(--hit) forwards;}
+.rc-txt{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 12px + 7vh);text-align:center;
+  font-weight:900;font-style:italic;text-transform:uppercase;line-height:.86;letter-spacing:-.02em;}
+.rc-l1,.rc-l2{display:block;padding-right:.08em;opacity:0;transform:scale(2.6);
+  text-shadow:0 4px 0 #000,0 0 26px rgba(0,0,0,.9);}
+.rc-l1{font-size:calc(var(--itw)*.074);color:#fff;animation:rcSlam .2s cubic-bezier(.5,0,.75,0) calc(var(--hit) + .2s) forwards;}
+.rc-l2{font-size:calc(var(--itw)*.135);color:var(--accent);animation:rcSlam .2s cubic-bezier(.5,0,.75,0) calc(var(--hit) + .42s) forwards;}
+.rc-yb{display:inline-block;margin-top:.55em;transform:rotate(-4deg) scale(.4);opacity:0;
+  background:var(--accent);color:oklch(0.160 0.020 350);font-size:calc(var(--itw)*.052);letter-spacing:0;
+  padding:.4em .85em;border-radius:6px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.6);
+  animation:rcPop .32s cubic-bezier(.3,1.6,.5,1) calc(var(--hit) + 1s) forwards;}
+.rc-flash{position:fixed;inset:0;z-index:1;background:#fff;opacity:0;pointer-events:none;
+  animation:rcFlash .26s ease-out var(--hit);}
+@keyframes rcRise{to{filter:brightness(1);}}
+@keyframes rcRiseS{to{transform:scale(1);filter:brightness(1);}}
+@keyframes rcBreath{50%{transform:scale(1.018)}}
+@keyframes rcPunch{0%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes rcSnap{to{opacity:1}}
+@keyframes rcSlam{to{opacity:1;transform:scale(1);}}
+@keyframes rcPop{to{opacity:1;transform:rotate(-4deg) scale(1);}}
+@keyframes rcFlash{0%{opacity:.28}100%{opacity:0}}
+@keyframes rcShake{0%,100%{transform:none}12%{transform:translate(10px,-7px) rotate(.7deg)}28%{transform:translate(-9px,6px) rotate(-.6deg)}45%{transform:translate(6px,-4px)}62%{transform:translate(-4px,3px)}80%{transform:translate(2px,-1px)}}
+@keyframes rcShake2{0%,100%{transform:none}25%{transform:translate(-4px,3px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-1px,1px)}}
+@keyframes introOut{to{opacity:0;visibility:hidden;pointer-events:none;}}
+@keyframes introOut2{to{opacity:0;visibility:hidden;pointer-events:none;}}
+.intro-ov:not(.go) *{animation-play-state:paused !important;}
+.intro-ov:not(.go) .rc-stage{opacity:0;}
+@media (prefers-reduced-motion:reduce){.rc-shake,.rc-flash{animation:none}}
+/* video stalled: hold everything in sync with it (never a skip) */
+.intro-ov.buf:not(.skip),.intro-ov.buf:not(.skip) *{animation-play-state:paused !important;}
 </style>
 </head>
 <body>
+<div class="intro-ov" id="introOv" aria-hidden="true" onclick="this.classList.add('skip')"><div class="rc-flash"></div><div class="rc-stage"><div class="rc-shake"><div class="rc-zoom"><video class="rc-vid" src="intro.mp4" poster="intro-poster.webp" muted playsinline preload="auto" disableremoteplayback></video><img class="rc-img" data-src="intro-rest.webp" alt=""><img class="rc-img rc-flex" data-src="intro-hit.webp" alt=""></div><div class="rc-shade"></div><div class="rc-txt"><span class="rc-l1">Tell the real Ronnie</span><span class="rc-l2">Yeah buddy!</span><span class="rc-yb">Lightweight banana!</span></div></div></div></div>
+<script>
+(function(){
+  const ov=document.getElementById("introOv"), vid=ov.querySelector("video");
+  let mode=null, over=false, res, t=0, prev=0, raf=0, heldAt=0;
+  window.introDone=new Promise(r=>res=r);
+  const finish=()=>{ if(over) return; over=true; cancelAnimationFrame(raf);
+    try{ vid.pause(); vid.removeAttribute("src"); vid.load(); }catch(e){} ov.remove(); res(); };
+  ov.addEventListener("animationend",e=>{ if(e.target===ov) finish(); });
+  const skip=()=>{ if(!over && !ov.classList.contains("skip")) ov.classList.add("skip"); };
+  const go=m=>{ if(mode) return; mode=m;
+    if(m==="video"){   // a busy phone may notice late: shift the timeline to where Ronnie already is
+      t=vid.currentTime||0;
+      const hit=parseFloat(getComputedStyle(ov).getPropertyValue("--hit"))||0;
+      ov.style.setProperty("--hit",Math.max(0,hit-t).toFixed(3)+"s");
+    }
+    ov.classList.add("go"); };
+  // the two stills snap instead: autoplay refused (iOS Low Power Mode), no video, or too slow to start
+  const stills=()=>{
+    if(mode || ov.classList.contains("stills")) return;
+    ov.classList.add("stills");
+    try{ vid.pause(); vid.removeAttribute("src"); vid.load(); }catch(e){}
+    const imgs=[...ov.querySelectorAll(".rc-img")];
+    imgs.forEach(i=>i.src=i.dataset.src);
+    Promise.all(imgs.map(i=>i.decode().catch(()=>{}))).then(()=>go("stills"));
+  };
+  // every frame: start the CSS clock once frames really move, then keep it locked to the
+  // video's own clock. Phones don't reliably report stalls, so compare the clocks directly.
+  const tick=now=>{
+    if(over) return;
+    const vt=vid.currentTime||0, done=vid.ended || (vid.duration && vt>=vid.duration-0.05);
+    if(!mode && !ov.classList.contains("stills") && vt>0.04){ go("video"); prev=now; raf=requestAnimationFrame(tick); return; }
+    if(mode==="video"){
+      const held=ov.classList.contains("buf");
+      if(!held) t+=(now-prev)/1000;
+      if(!held && !done && t-vt>0.08){ ov.classList.add("buf"); heldAt=now; }   // video fell behind: hold the words
+      else if(held && (done || vt>=t)) ov.classList.remove("buf");
+      else if(held && now-heldAt>1200) skip();                                    // stuck: just open the app
+    }
+    prev=now; raf=requestAnimationFrame(tick);
+  };
+  raf=requestAnimationFrame(n=>{ prev=n; tick(n); });
+  vid.addEventListener("error",stills);
+  try{ const p=vid.play(); if(p) p.catch(e=>{ if(!e || e.name!=="AbortError") stills(); }); }catch(e){ stills(); }
+  setTimeout(()=>{ if(!mode) stills(); }, 1600);   // video still not moving: use the stills
+  setTimeout(()=>{ if(!mode) skip(); }, 2600);     // nothing ready: never make her wait
+  setTimeout(skip, 9000);                           // hard cap
+})();
+</script>
+
 
 <div class="appbar">
   <div class="row">
@@ -1162,7 +1273,7 @@ const DISPLAY_NAME     = "Hannah";      // what she sees
 const ATHLETE_KEY      = "HannahC";     // backend identity - NOT "Hannah" (that is Stock's mom)
 const DAD_NAME         = DISPLAY_NAME;  // legacy alias, display only
 /* ========================================================================== */
-const APP_VERSION = "2026.07.09b";
+const APP_VERSION = "2026.09.28a";
 /* Owner profile — unset. Never populate this in a public repo with real
    personal details; it ships in the page source. */
 const PROFILE = null;
