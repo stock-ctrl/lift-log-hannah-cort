@@ -949,6 +949,15 @@ body.drag-lock,body.drag-lock *{-webkit-user-select:none !important;user-select:
 .intro-ov:not(.go) *{animation-play-state:paused !important;}
 .intro-ov:not(.go) .rc-stage{opacity:0;}
 @media (prefers-reduced-motion:reduce){.rc-shake,.rc-flash{animation:none}}
+/* Ronnie peek: on 1 in 8 app opens, Ronnie (ronnie-peek.webp, keyed Grok clip, plays once)
+   grips the top edge of a section or stat tile, pops up, raises an eyebrow and ducks.
+   Tap him and he's gone. ?peek=1 forces it (for previews). */
+.rc-peek{position:absolute;z-index:25;aspect-ratio:360/324;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;animation:peekIn .2s ease-out;}
+.rc-peek img{display:block;width:100%;height:100%;pointer-events:none;-webkit-user-select:none;user-select:none;}
+.rc-peek.out{animation:peekOut .22s ease-in forwards;}
+@keyframes peekIn{from{opacity:0}}
+@keyframes peekOut{to{opacity:0;transform:translateY(10%)}}
 /* video stalled: hold everything in sync with it (never a skip) */
 .intro-ov.buf:not(.skip),.intro-ov.buf:not(.skip) *{animation-play-state:paused !important;}
 </style>
@@ -1273,7 +1282,7 @@ const DISPLAY_NAME     = "Hannah";      // what she sees
 const ATHLETE_KEY      = "HannahC";     // backend identity - NOT "Hannah" (that is Stock's mom)
 const DAD_NAME         = DISPLAY_NAME;  // legacy alias, display only
 /* ========================================================================== */
-const APP_VERSION = "2026.09.28a";
+const APP_VERSION = "2026.09.30e";
 /* Owner profile — unset. Never populate this in a public repo with real
    personal details; it ships in the page source. */
 const PROFILE = null;
@@ -3014,37 +3023,62 @@ function renderHome(){
    Verified against all 103 exercise names in the real logs.
    Secondary muscles are credited at half a set. */
 const EX_RULES = [
-  [/tricep|skull ?crusher|pushdown|tate press|dip bar/i,       ["triceps"], []],
-  [/(db|dumbbell)\s+kickback/i,                                ["triceps"], []],
-  [/chest dip|weighted .*dip/i,                                 ["chest"], ["triceps"]],
-  [/(leg|hamstring|nordic|lying)\s*(hamstring)?\s*curl/i,      ["hamstrings"], []],
+  // Specific variants first; the general pattern for each family comes after.
+  [/tibialis/i,                                                 [], []],   // front of shin: no region on the map
+  [/dip bar|tricep dip|bench dip/i,                                       ["triceps"], ["chest","front_delts"]],
+  [/tricep|skull ?crusher|push[- ]?down|tate press|french press/i, ["triceps"], []],
+  [/jm press/i,                                                 ["triceps"], ["chest","front_delts"]],
+  [/(diamond|close[- ]?grip) push[- ]?up/i,                     ["triceps"], ["chest","front_delts"]],
+  [/(db|dumbbell)\s+kickback/i,                                 ["triceps"], []],
+  [/close-?grip bench/i,                                        ["triceps"], ["chest","front_delts"]],
+  [/chest dip|weighted .*dip|\bdips?\b/i,                       ["chest"], ["triceps","front_delts"]],
+  [/cuban press/i,                                              ["rear_delts"], ["side_delts","traps"]],
+  [/(leg|hamstring|nordic|lying)\s*(hamstring)?\s*curl/i,       ["hamstrings"], []],
   [/seated hamstring/i,                                         ["hamstrings"], []],
-  // Per Athlean-X: reverse curls are a brachioradialis/forearm builder, not a
-  // biceps exercise. Zottman is half supinated, half pronated, so it is both.
-  // These must sit above the general curl rule.
-  [/reverse[- ]?(grip )?curl|pronated curl/i,                   ["forearms"], ["biceps"]],
-  [/zottman/i,                                                  ["biceps","forearms"], []],
+  // Hannah's "Bicep Cable Pull": a neutral-grip overhead cable pull (per Stock),
+  // lats and biceps together. Must beat the general bicep rule.
+  [/bicep cable pull/i,                                         ["upper_back","biceps"], ["forearms","rear_delts"]],
+  [/reverse\b.*\bcurl|pronated curl/i,                          ["forearms"], ["biceps"]],
+  [/zottman|hammer curl|pinwheel/i,                             ["biceps","forearms"], []],
   [/bicep|curl|spider|bayesian|concentration/i,                 ["biceps"], ["forearms"]],
-  [/calf|tibialis|soleus/i,                                     ["calves"], []],
+  [/calf|soleus/i,                                              ["calves"], []],
   [/abduct/i,                                                   ["abductors"], ["glutes"]],
   [/adduct/i,                                                   ["adductors"], []],
   [/hip thrust|glute\s*bridge|kickback|pull-?through/i,         ["glutes"], ["hamstrings"]],
   [/trap bar dead ?lift/i,          ["quads","glutes","hamstrings"], ["traps","lower_back","forearms"]],
   [/romanian|rdl|romain/i,                                      ["hamstrings","glutes"], ["lower_back"]],
-  [/rack pull/i,                                                ["lower_back","traps"], ["hamstrings","forearms"]],
+  [/rack pull/i,                    ["glutes","hamstrings","lower_back"], ["traps","upper_back","forearms"]],
   [/dead ?lift/i,                   ["hamstrings","glutes","lower_back"], ["traps","quads","forearms"]],
-  [/back extension|hyper ?ext|good morning/i,                   ["lower_back"], ["glutes","hamstrings"]],
+  [/back extension|hyper ?ext|good morning/i,                   ["lower_back","glutes"], ["hamstrings"]],
   [/leg extension/i,                                            ["quads"], []],
-  [/leg press/i,                                                ["quads","glutes"], ["hamstrings"]],
-  [/squat|wall sit/i,                                           ["quads","glutes"], ["hamstrings","adductors","abs"]],
+  [/leg press.*(high|wide)/i,                                   ["quads","glutes"], ["hamstrings","adductors"]],
+  [/leg press.*(low|narrow)/i,                                  ["quads"], ["glutes"]],
+  [/leg press/i,                                                ["quads"], ["glutes","hamstrings"]],
+  [/sissy/i,                                                    ["quads"], []],
+  [/spanish squat|wall sit/i,                                   ["quads"], ["glutes"]],
+  [/front squat|heel-?elevated|goblet squat/i,                  ["quads"], ["glutes","adductors","abs"]],
+  [/cyclist|belt squat/i,                                       ["quads"], ["glutes","adductors"]],
+  [/split squat/i,                  ["quads","glutes"], ["hamstrings","adductors","abductors","abs"]],
+  [/box jump/i,                                                 ["quads","glutes"], ["calves","hamstrings"]],
+  [/squat/i,                                                    ["quads","glutes"], ["hamstrings","adductors","abs"]],
+  [/lateral lunge/i,                                            ["quads","glutes","adductors"], ["hamstrings"]],
   [/lunge|step-?up/i,                                           ["quads","glutes"], ["hamstrings"]],
-  [/upright row/i,                                              ["traps","side_delts"], []],
+  [/upright row/i,                                              ["side_delts","traps"], ["rear_delts"]],
   [/shrug/i,                                                    ["traps"], []],
-  [/face pull|rear delt|pull-?apart|y-?raise/i,                 ["rear_delts"], ["traps","upper_back"]],
-  [/row|pulldown|pull-?up|chin-?up|pullover|straight-?arm/i,     ["upper_back"], ["biceps","rear_delts","forearms"]],
-  [/lateral raise|side raise|lat raise/i,                        ["side_delts"], ["traps"]],
-  [/overhead press|shoulder press|arnold|z-?press|military/i,   ["front_delts"], ["side_delts","triceps","traps"]],
-  [/bench|chest|fly|flye|crossover|guillotine|press/i,          ["chest"], ["front_delts","triceps"]],
+  [/y-?raise/i,                                                 ["traps"], ["rear_delts","side_delts"]],
+  [/face pull|rear delt|pull-?apart/i,                          ["rear_delts"], ["traps","upper_back"]],
+  [/pullover/i,                                                 ["upper_back"], ["chest","triceps"]],
+  [/straight-?arm/i,                                            ["upper_back"], ["triceps","rear_delts"]],
+  [/^(?!.*(incline|chest-supported)).*(barbell row|pendlay)/i,  ["upper_back"], ["traps","rear_delts","biceps","lower_back"]],
+  [/row|pull[- ]?down|pull[- ]?up|chin[- ]?up/i,                           ["upper_back"], ["biceps","rear_delts","forearms"]],
+  [/lateral raise|side raise|lat raise/i,                       ["side_delts"], ["traps"]],
+  [/arnold/i,                                                   ["front_delts","side_delts"], ["rear_delts","triceps","traps"]],
+  [/z-?press/i,                                                 ["front_delts"], ["side_delts","triceps","traps","abs"]],
+  [/overhead press|\bohp\b|shoulder press|military/i,           ["front_delts"], ["side_delts","triceps","traps"]],
+  [/incline.*(60|steep)/i,                                      ["chest","front_delts"], ["triceps"]],
+  [/\bfly\b|flye|crossover/i,                                  ["chest"], ["front_delts"]],   // flies barely use triceps
+  [/push[- ]?up/i,                                              ["chest"], ["triceps","front_delts"]],
+  [/bench|chest|guillotine|press/i,                            ["chest"], ["front_delts","triceps"]],
   [/plank|crunch|sit-?up|ab wheel|leg raise|russian twist|oblique|woodchop/i, ["abs"], ["obliques"]],
   [/wrist|farmer/i,                                             ["forearms"], []],
 ];
@@ -3344,6 +3378,46 @@ renderToday(); renderHistory(); renderRecords(); updateStats(); renderHome(); re
 syncPull().then(syncPush);
 planPull().then(maybeAutoLoadToday);
 setTimeout(checkForUpdate, 1500);
+</script>
+<script>
+(function(){
+  const FORCE=/[?&]peek=1\b/.test(location.search);
+  if(!FORCE && Math.random()>=1/8) return;             // 1 in 8 opens
+  const SRC="ronnie-peek.webp", PLAY_MS=3650, LEDGE=0.92;   // his fingers grip at 92% of the art's height
+  let blob=null, tries=0;
+  const busy=()=>document.hidden || document.getElementById("introOv") ||
+    document.querySelector(".sheet.show,.scrim.show,#clock.on") ||
+    (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+  const ledges=()=>{
+    const bar=document.querySelector(".appbar"), minTop=(bar?bar.getBoundingClientRect().bottom:0)+140;
+    return [...document.querySelectorAll(".view.active .hp-strip,.view.active .hp-sech,.view.active .stat-card")]
+      .filter(el=>{ const r=el.getBoundingClientRect(); return r.width>150 && r.top>=minTop && r.top<=innerHeight-110; });
+  };
+  const show=el=>{
+    const r=el.getBoundingClientRect(), w=Math.min(180,r.width-16), h=w*324/360;
+    const x=r.left+8+Math.random()*(r.width-16-w), view=document.querySelector(".view.active");
+    const d=document.createElement("div"), img=new Image(), url=URL.createObjectURL(blob);  // fresh URL = the clip starts from frame one
+    d.className="rc-peek"; d.setAttribute("aria-hidden","true");
+    d.style.cssText="left:"+(x+scrollX)+"px;top:"+(r.top+scrollY-h*LEDGE)+"px;width:"+w+"px";
+    let gone=false;
+    const bye=()=>{ if(gone) return; gone=true; clearInterval(watch); d.classList.add("out");
+      setTimeout(()=>{ d.remove(); URL.revokeObjectURL(url); },240); };
+    const watch=setInterval(()=>{ if(!view.classList.contains("active") || busy()) bye(); },250);  // tab switch, sheet, typing
+    d.addEventListener("click",e=>{ e.stopPropagation(); bye(); });
+    img.alt=""; img.src=url; d.appendChild(img);
+    (img.decode?img.decode():Promise.resolve()).catch(()=>{}).then(()=>{ if(gone) return; document.body.appendChild(d); setTimeout(bye,PLAY_MS); });
+  };
+  const attempt=()=>{
+    if(++tries>30) return;                                // she never sat still for it: skip this session
+    const c=blob && !busy() ? ledges() : [];
+    if(!c.length) return setTimeout(attempt, 6000);
+    show(c[Math.floor(Math.random()*c.length)]);
+  };
+  (window.introDone||Promise.resolve()).then(()=>{
+    fetch(SRC).then(r=>r.ok?r.blob():null).then(b=>{ blob=b; }).catch(()=>{});
+    setTimeout(attempt, FORCE ? 2500 : 10000+Math.random()*30000);
+  });
+})();
 </script>
 </body>
 </html>
