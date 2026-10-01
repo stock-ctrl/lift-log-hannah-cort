@@ -1282,7 +1282,7 @@ const DISPLAY_NAME     = "Hannah";      // what she sees
 const ATHLETE_KEY      = "HannahC";     // backend identity - NOT "Hannah" (that is Stock's mom)
 const DAD_NAME         = DISPLAY_NAME;  // legacy alias, display only
 /* ========================================================================== */
-const APP_VERSION = "2026.09.30e";
+const APP_VERSION = "2026.10.01a";
 /* Owner profile — unset. Never populate this in a public repo with real
    personal details; it ships in the page source. */
 const PROFILE = null;
@@ -3381,8 +3381,9 @@ setTimeout(checkForUpdate, 1500);
 </script>
 <script>
 (function(){
-  const FORCE=/[?&]peek=1\b/.test(location.search);
-  if(!FORCE && Math.random()>=1/8) return;             // 1 in 8 opens
+  const FORCE=/[?&]peek=1\b/.test(location.search), SEEN="hannahc_peekSeen";
+  let first=false; try{ first=!localStorage.getItem(SEEN); }catch(e){}   // her first look is guaranteed
+  if(!FORCE && !first && Math.random()>=1/8) return;   // after that, 1 in 8 opens
   const SRC="ronnie-peek.webp", PLAY_MS=3650, LEDGE=0.92;   // his fingers grip at 92% of the art's height
   let blob=null, tries=0;
   const busy=()=>document.hidden || document.getElementById("introOv") ||
@@ -3405,17 +3406,18 @@ setTimeout(checkForUpdate, 1500);
     const watch=setInterval(()=>{ if(!view.classList.contains("active") || busy()) bye(); },250);  // tab switch, sheet, typing
     d.addEventListener("click",e=>{ e.stopPropagation(); bye(); });
     img.alt=""; img.src=url; d.appendChild(img);
-    (img.decode?img.decode():Promise.resolve()).catch(()=>{}).then(()=>{ if(gone) return; document.body.appendChild(d); setTimeout(bye,PLAY_MS); });
+    (img.decode?img.decode():Promise.resolve()).catch(()=>{}).then(()=>{ if(gone) return; document.body.appendChild(d); setTimeout(bye,PLAY_MS);
+      if(!FORCE) try{ localStorage.setItem(SEEN,new Date().toISOString()); }catch(e){} });
   };
   const attempt=()=>{
-    if(++tries>30) return;                                // she never sat still for it: skip this session
+    if(++tries>(first?600:30)) return;                    // never a quiet moment: skip (first look keeps trying ~1h)
     const c=blob && !busy() ? ledges() : [];
     if(!c.length) return setTimeout(attempt, 6000);
     show(c[Math.floor(Math.random()*c.length)]);
   };
   (window.introDone||Promise.resolve()).then(()=>{
     fetch(SRC).then(r=>r.ok?r.blob():null).then(b=>{ blob=b; }).catch(()=>{});
-    setTimeout(attempt, FORCE ? 2500 : 10000+Math.random()*30000);
+    setTimeout(attempt, FORCE ? 2500 : first ? 3000 : 10000+Math.random()*30000);
   });
 })();
 </script>
